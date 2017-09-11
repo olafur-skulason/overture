@@ -25,33 +25,65 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.ui.themes.ColorUtil;
+import org.overture.ide.ui.VdmUIPlugin;
 
 public class VdmColorProvider {
 	
-	public static final RGB SINGLE_LINE_COMMENT = new RGB(63, 127, 95);
-	public static final RGB KEYWORD = new RGB(127, 0, 85);
-	public static final RGB TYPE = new RGB(0, 0, 128);
-	public static final RGB STRING = new RGB(42, 0, 255);
-	public static final RGB DEFAULT = new RGB(0, 0, 0);
-	public static final RGB LATEX = new RGB(153,180,209);
+	// Default syntax highlighting preferences
+	public static final String SINGLE_LINE_COMMENT = "ovt_rgb_single_line_comment";
+	public static final String KEYWORD             = "ovt_rgb_keyword";
+	public static final String TYPE                = "ovt_rgb_type";
+	public static final String STRING              = "ovt_rgb_string";
+	public static final String DEFAULT             = "ovt_rgb_default";
+	public static final String LATEX               = "ovt_rgb_latex";
 	
-	protected static Map<RGB, Color> fColorTable = new HashMap<RGB, Color>(10);
+	protected static Map<String, Color> fColorTable = new HashMap<String, Color>(10);
 
 	public void dispose() {
+	
 		Iterator<Color> e = fColorTable.values().iterator();
 		while (e.hasNext())
 			((Color) e.next()).dispose();
 	}
 
-	public Color getColor(RGB rgb) {
-		Color color = (Color) fColorTable.get(rgb);
+	public Color getColor(String key) {
+		
+		Color color = (Color) fColorTable.get(key);
+		
 		if (color == null) {
+			IPreferenceStore store = VdmUIPlugin.getDefault().getPreferenceStore();
+
+			String pref = store.getString(key);
+			RGB rgb = ColorUtil.getColorValue(pref);
 			color = new Color(Display.getCurrent(), rgb);
-			fColorTable.put(rgb, color);
+
+			fColorTable.put(key, color);
 		}
+		
 		return color;
 	}
+	
+	public static void changeColor(String key, RGB rgb) {
+		
+		if(fColorTable.get(key) != null)
+			fColorTable.get(key).dispose();
+			
+		fColorTable.put(key, new Color(Display.getCurrent(), rgb));
+	}
+	
+	public static void resetColorTable() {
+		
+		Iterator<Color> e = fColorTable.values().iterator();
+		while (e.hasNext())
+			((Color) e.next()).dispose();
+		
+		fColorTable.clear();
+	}
+
+	
 }

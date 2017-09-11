@@ -22,20 +22,79 @@
 package org.overture.ide.ui.preferences;
 
 import org.eclipse.jface.preference.BooleanFieldEditor;
+import org.eclipse.jface.preference.ColorFieldEditor;
 import org.eclipse.jface.preference.FieldEditorPreferencePage;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.util.IPropertyChangeListener;
+import org.eclipse.jface.util.PropertyChangeEvent;
+import org.eclipse.swt.graphics.RGB;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPreferencePage;
+import org.eclipse.ui.themes.ColorUtil;
 import org.overture.ide.ui.IVdmUiConstants;
 import org.overture.ide.ui.VdmUIPlugin;
+import org.overture.ide.ui.editor.syntax.VdmColorProvider;
 
 public class WorkbenchPreferencePageEditor  extends FieldEditorPreferencePage implements
 IWorkbenchPreferencePage {
 
+		
 	@Override
 	protected void createFieldEditors()
 	{
 		addField(new BooleanFieldEditor(IVdmUiConstants.ENABLE_EDITOR_RECONFILER, "Syntax checking while you type", getFieldEditorParent()));
+
+		
+		ColorFieldEditor default_cfe = new ColorFieldEditor(VdmColorProvider.DEFAULT, "Default color", getFieldEditorParent());
+		default_cfe.getColorSelector().addListener(   
+				  new IPropertyChangeListener() { 
+					public void propertyChange(PropertyChangeEvent event) {
+				          VdmColorProvider.changeColor(VdmColorProvider.DEFAULT,(RGB) event.getNewValue());
+				    }
+				  }
+				);
+		addField(default_cfe);
+
+		ColorFieldEditor keyword_cfe = new ColorFieldEditor(VdmColorProvider.KEYWORD, "Keyword color", getFieldEditorParent());
+		keyword_cfe.getColorSelector().addListener(   
+				  new IPropertyChangeListener() { 
+					public void propertyChange(PropertyChangeEvent event) {
+				          VdmColorProvider.changeColor(VdmColorProvider.KEYWORD,(RGB) event.getNewValue());
+				    }
+				  }
+				);		
+		addField(keyword_cfe);
+		
+		ColorFieldEditor latex_cfe = new ColorFieldEditor(VdmColorProvider.LATEX, "Latex color", getFieldEditorParent());
+		latex_cfe.getColorSelector().addListener(   
+				  new IPropertyChangeListener() { 
+					public void propertyChange(PropertyChangeEvent event) {
+				          VdmColorProvider.changeColor(VdmColorProvider.LATEX,(RGB) event.getNewValue());
+				    }
+				  }
+				);		
+		addField(latex_cfe);
+
+		ColorFieldEditor line_com_cfe = new ColorFieldEditor(VdmColorProvider.SINGLE_LINE_COMMENT, "Line comment color", getFieldEditorParent());
+		line_com_cfe.getColorSelector().addListener(   
+				  new IPropertyChangeListener() { 
+					public void propertyChange(PropertyChangeEvent event) {
+				          VdmColorProvider.changeColor(VdmColorProvider.SINGLE_LINE_COMMENT,(RGB) event.getNewValue());
+				    }
+				  }
+				);		
+		addField(line_com_cfe);
+		
+		ColorFieldEditor type_cfe = new ColorFieldEditor(VdmColorProvider.TYPE, "Type color", getFieldEditorParent());
+		default_cfe.getColorSelector().addListener(   
+				  new IPropertyChangeListener() { 
+					public void propertyChange(PropertyChangeEvent event) {
+				          VdmColorProvider.changeColor(VdmColorProvider.TYPE,(RGB) event.getNewValue());
+				    }
+				  }
+				);		
+		addField(type_cfe);	
+		
 	}
 	
 	@Override
@@ -48,14 +107,24 @@ IWorkbenchPreferencePage {
 	protected void performDefaults()
 	{
 		IPreferenceStore store = getPreferenceStore();
-		store.setDefault(IVdmUiConstants.ENABLE_EDITOR_RECONFILER, true);
+
+		store.setToDefault(IVdmUiConstants.ENABLE_EDITOR_RECONFILER);
+        store.setToDefault(VdmColorProvider.DEFAULT);
+        store.setToDefault(VdmColorProvider.SINGLE_LINE_COMMENT);
+        store.setToDefault(VdmColorProvider.KEYWORD);
+        store.setToDefault(VdmColorProvider.TYPE);
+        store.setToDefault(VdmColorProvider.STRING);
+        store.setToDefault(VdmColorProvider.DEFAULT);
+        store.setToDefault(VdmColorProvider.LATEX);
+        
+        VdmColorProvider.resetColorTable();
+        
 		super.performDefaults();
 	}
 
 	public void init(IWorkbench workbench)
 	{
-		IPreferenceStore store = getPreferenceStore();
-		store.setDefault(IVdmUiConstants.ENABLE_EDITOR_RECONFILER, true);
+		super.initialize();
 	}
 
 }

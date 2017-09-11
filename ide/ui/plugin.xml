@@ -543,5 +543,11 @@ Handlers
            class="org.overture.ide.ui.quickfix.MarkerResolutionGenerator"
            markerType="org.eclipse.core.resources.problemmarker">
      </markerResolutionGenerator>
+  </extension>
+  <extension
+        point="org.eclipse.core.runtime.preferences">
+     <initializer
+           class="org.overture.ide.ui.preferences.PreferenceInitializer">
+     </initializer>
   </extension>  
 </plugin>
