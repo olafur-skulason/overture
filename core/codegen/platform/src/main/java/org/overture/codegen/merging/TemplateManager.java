@@ -50,7 +50,7 @@ public class TemplateManager
 
 	protected String root;
 
-	private Class<?> templateLoadRef = null;
+	protected Class<?> templateLoadRef = null;
 
 	/**
 	 * Not for use with extensions. Use {@link #TemplateManager(String, Class)} instead.

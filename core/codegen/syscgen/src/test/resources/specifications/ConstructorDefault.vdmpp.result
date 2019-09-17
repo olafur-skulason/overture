@@ -1,0 +1,50 @@
+#pragma once
+
+#include <list>
+#include <systemc>
+#include "B.h"
+
+public class A
+{
+public:
+    A();
+
+protected:
+private:
+}
+
+##########
+#include "A.h"
+
+A::A()
+{
+
+}
+
+
+##########
+#pragma once
+
+#include <list>
+#include <systemc>
+#include "A.h"
+
+public class B
+{
+public:
+    B();
+
+protected:
+private:
+}
+
+##########
+#include "B.h"
+
+B::B()
+{
+/* skip */
+}
+
+
+##########

@@ -1,0 +1,1 @@
+std::abs($SystemcFormat.format($node.getExp()))

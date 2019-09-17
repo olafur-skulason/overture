@@ -1,0 +1,1 @@
+$SystemcFormat.format($node.getCondition(), false) ? $SystemcFormat.format($node.getTrueValue(), false) : $SystemcFormat.format($node.getFalseValue(), false)

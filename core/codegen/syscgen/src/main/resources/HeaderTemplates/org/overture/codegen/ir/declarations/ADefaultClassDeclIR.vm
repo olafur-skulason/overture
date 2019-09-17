@@ -1,0 +1,57 @@
+#pragma once
+
+#foreach($dep in $node.getDependencies())
+\#include $SystemcFormat.getString($dep)
+#end
+
+## # if(!SystemcFormat.isNull($node.getThread()))
+##	#set ( $activeObject = true )
+## #end
+$node.getAccess() class $node.getName()
+{
+public:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "public" )
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "public")
+    $SystemcFormat.format($method)
+#end
+#end
+##
+protected:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "protected")
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "protected")
+    $SystemcFormat.format($method)
+#end
+#end
+##
+private:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "private")
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "private")
+    $SystemcFormat.format($method)
+#end
+#end
+}
+##

@@ -1,0 +1,8 @@
+#set( $static = "")
+#if ($node.getStatic())
+	#set( $static = "static ")
+#end
+##
+##$SystemcFormat.formatMetaData($node.getMetaData())
+##
+$static$SystemcFormat.format($node.getType()) $node.getName() $SystemcFormat.formatInitialExp($node.getInitial());

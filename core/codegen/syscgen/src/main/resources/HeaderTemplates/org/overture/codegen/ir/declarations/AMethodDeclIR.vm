@@ -1,0 +1,17 @@
+#set ( $returnType = "")
+#if (!$node.getIsConstructor())
+#set( $returnType = $SystemcFormat.format($node.getMethodType.getResult() ) )
+#end
+#set( $static = "")
+#if ($node.getStatic())
+#set( $static = "static ")
+#end
+##
+#set( $params = $SystemcFormat.format($node.getFormalParams()))
+##
+#set ( $returnType = "" )
+#if (!$node.getIsConstructor())
+#set ( $returnType = $SystemcFormat.format($node.getMethodType().getResult()) + " ")
+#end
+##
+$static$returnType$node.getName()(${params});

@@ -1,0 +1,1 @@
+$SystemcFormat.format($node.getLeft(), true) * $SystemcFormat.format($node.getRight(), false)

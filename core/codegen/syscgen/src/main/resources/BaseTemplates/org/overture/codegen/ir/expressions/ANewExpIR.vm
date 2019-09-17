@@ -1,0 +1,1 @@
+new $SystemcFormat.formatName($node)($SystemcFormat.formatArgs($node.getArgs()))

@@ -1,0 +1,39 @@
+#pragma once
+
+#include <list>
+#include <systemc>
+
+public class A
+{
+public:
+    int op();
+
+    A();
+
+protected:
+private:
+}
+
+##########
+#include "A.h"
+
+int A::op()
+{
+    int n = 1;
+    bool b = true;
+    double r = 1.0f;
+    char c = '1';
+    std::list<char> s1 = std::list<char>();
+    A a = A();
+    return 0;
+
+
+}
+
+A::A()
+{
+
+}
+
+
+##########

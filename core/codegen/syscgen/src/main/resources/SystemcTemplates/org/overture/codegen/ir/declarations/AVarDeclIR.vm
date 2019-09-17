@@ -1,0 +1,7 @@
+#set ($pattern = $SystemcFormat.format($node.getPattern()))
+##
+#set ($end = ";")
+#if ($SystemcFormat.isLoopVar($node))
+#set( $end = "")
+#end
+$SystemcFormat.format($node.getType()) $pattern = $SystemcFormat.format($node.getExp())${end}

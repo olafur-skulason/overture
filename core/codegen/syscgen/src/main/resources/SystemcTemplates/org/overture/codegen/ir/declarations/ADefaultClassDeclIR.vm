@@ -1,0 +1,14 @@
+\#include "${node.getName()}.h"
+
+##foreach($dep in $node.getDependencies())
+## #include "$SystemcFormat.getString($dep)"
+##end
+#foreach ( $class in $node.getInnerClasses() )
+$SystemcFormat.format($class)
+#end
+##
+#foreach ($method in $node.getMethods() )
+$SystemcFormat.format($method)
+#end
+##
+##
