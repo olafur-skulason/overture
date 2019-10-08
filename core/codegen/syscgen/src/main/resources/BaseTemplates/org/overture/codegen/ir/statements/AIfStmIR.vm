@@ -1,0 +1,16 @@
+if ( $SystemcFormat.format($node.getIfExp()) )
+{
+$SystemcFormat.format($node.getThenStm())
+}
+#foreach( $stm in $node.getElseIf() )
+else if ( $SystemcFormat.format($stm.getElseIf()) )
+{
+$SystemcFormat.format($stm.getThenStm())
+}
+#end
+#if ( !$SystemcFormat.isNull($node.getElseStm()) )
+else
+{
+$SystemcFormat.format($node.getElseStm())
+}
+#end

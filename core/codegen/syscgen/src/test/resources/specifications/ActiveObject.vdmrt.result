@@ -1,0 +1,28 @@
+#pragma once
+
+#include <list>
+#include <systemc>
+SC_MODULE(Active)
+{
+    SC_CTOR(Active)
+    {
+        SC_CTHREAD(T)
+        sensitive << clk;
+    }
+public:
+    int counter  = 0;
+    void T();
+
+protected:
+private:
+}
+
+##########
+#include "Active.h"
+
+void Active::T()
+{
+/* skip */
+}
+
+##########

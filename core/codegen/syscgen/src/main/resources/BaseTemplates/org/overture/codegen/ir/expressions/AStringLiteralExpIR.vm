@@ -1,1 +1,3 @@
+#set($Q = '"')
+#set($value = "${Q}$node.getValue()${Q}")
 $value

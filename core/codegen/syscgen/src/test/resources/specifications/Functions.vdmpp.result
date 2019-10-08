@@ -1,0 +1,44 @@
+#pragma once
+
+#include <list>
+#include <systemc>
+
+public class Functions
+{
+public:
+    Functions();
+
+    static int f1();
+
+    static int f2();
+
+    static int f3();
+
+protected:
+private:
+}
+
+##########
+#include "Functions.h"
+
+Functions::Functions()
+{
+
+}
+static int Functions::f1()
+{
+return 1 == 1 ? 1 : 2;
+
+}
+static int Functions::f2()
+{
+return 1 == 1 ? 2 == 2 ? 3 : 3 == 3 ? 4 : 5 : 6;
+
+}
+static int Functions::f3()
+{
+return f2();
+
+}
+
+##########

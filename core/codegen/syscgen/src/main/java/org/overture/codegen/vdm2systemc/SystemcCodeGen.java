@@ -6,7 +6,6 @@ import org.overture.codegen.utils.GeneratedModule;
 import org.overture.ast.analysis.AnalysisException;
 import org.overture.ast.expressions.PExp;
 import org.overture.ast.definitions.*;
-import org.overture.ast.node.INode;
 import org.overture.codegen.utils.Generated;
 import org.overture.codegen.ir.declarations.SClassDeclIR;
 import org.overture.codegen.ir.declarations.AModuleDeclIR;
@@ -15,6 +14,7 @@ import org.overture.codegen.ir.analysis.DepthFirstAnalysisAdaptor;
 import org.overture.codegen.trans.ModuleToClassTransformation;
 import org.overture.codegen.trans.DivideTrans;
 import org.overture.codegen.merging.MergeVisitor;
+import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 
 import java.util.*;
 import java.io.File;
@@ -25,11 +25,14 @@ public class SystemcCodeGen extends CodeGenBase
 	private SystemcFormat implementationSystemcFormat, headerSystemcFormat;
 	private SystemcTransSeries transSeries;
 	private SClassDefinition mainClass;
+	private ArchitecturalAnalysis architecturalAnalysis;
 
 	private List<String> warnings;
 
 	public SystemcSettings systemcSettings;
 	public IRSettings irSettings;
+
+	private List<String> modules;
 
 	public SystemcCodeGen()
 	{
@@ -39,6 +42,8 @@ public class SystemcCodeGen extends CodeGenBase
 		this.transSeries = new SystemcTransSeries(this);
 		this.mainClass = null;
 		this.warnings = new LinkedList<>();
+		this.modules = new LinkedList<>();
+		this.architecturalAnalysis = new ArchitecturalAnalysis();
 		clearVdmAstData();
 	}
 
@@ -58,32 +63,9 @@ public class SystemcCodeGen extends CodeGenBase
 
 		statuses = initialIrEvent(statuses);
 
-		List<IRStatus<AModuleDeclIR>> moduleStatuses = IRStatus.extract(statuses, AModuleDeclIR.class);
-		List<IRStatus<PIR>> modulesAsNodes = IRStatus.extract(moduleStatuses);
+		List<IRStatus<PIR>> canBeGenerated = new LinkedList<IRStatus<PIR>>();
 
-		ModuleToClassTransformation moduleTransformation = new ModuleToClassTransformation(getInfo(), transAssistant, getModuleDecls(moduleStatuses));
-
-		for (IRStatus<PIR> status : modulesAsNodes)
-		{
-			try
-			{
-				generator.applyTotalTransformation(status, moduleTransformation);
-			}
-			catch(org.overture.codegen.ir.analysis.AnalysisException e)
-			{
-				log.error("Error when generating code for module " + 
-					status.getIrNodeName() + ": " + e.getMessage());
-				log.error("Skipping module..");
-				e.printStackTrace();
-			}
-		}
-
-		List<IRStatus<SClassDeclIR>> classStatuses = IRStatus.extract(modulesAsNodes, SClassDeclIR.class);
-		classStatuses.addAll(IRStatus.extract(statuses, SClassDeclIR.class));
-
-		List<IRStatus<SClassDeclIR>> canBeGenerated = new LinkedList<IRStatus<SClassDeclIR>>();
-
-		for (IRStatus<SClassDeclIR> status : classStatuses)
+		for (IRStatus<PIR> status : statuses)
 		{
 			if(status.canBeGenerated())
 			{
@@ -95,9 +77,11 @@ public class SystemcCodeGen extends CodeGenBase
 			}
 		}
 
+		architecturalAnalysis.AnalyseArchitecture(canBeGenerated);
+
 		for (DepthFirstAnalysisAdaptor trans : transSeries.getSeries())
 		{
-			for(IRStatus<SClassDeclIR> status : canBeGenerated)
+			for(IRStatus<PIR> status : canBeGenerated)
 			{
 				try
 				{
@@ -116,21 +100,27 @@ public class SystemcCodeGen extends CodeGenBase
 			}
 		}
 
+		//generateSyscModules(canBeGenerated);
+
 		MergeVisitor implMergeVisitor = implementationSystemcFormat.getMergeVisitor();
 		MergeVisitor headerMergeVisitor = headerSystemcFormat.getMergeVisitor();
 		implementationSystemcFormat.setFunctionValueAssistant(transSeries.getFuncValAssist());
 		headerSystemcFormat.setFunctionValueAssistant(transSeries.getFuncValAssist());
 
-		for(IRStatus<SClassDeclIR> status : canBeGenerated)
+		for(IRStatus<PIR> status : canBeGenerated)
 		{
-			INode vdmClass = status.getVdmNode();
+			org.overture.ast.node.INode vdmClass = status.getVdmNode();
 
 			if(vdmClass == mainClass)
 			{
-				SClassDeclIR mainIr = status.getIrNode();
+				PIR mainIr = status.getIrNode();
 				if (mainIr instanceof ADefaultClassDeclIR)
 				{
 					status.getIrNode().setTag(new SystemcMainTag((ADefaultClassDeclIR) status.getIrNode()));
+				}
+				else if (mainIr instanceof ASyscModuleDeclIR)
+				{
+					status.getIrNode().setTag(new SystemcMainTag((ASyscModuleDeclIR) status.getIrNode()));
 				}
 				else
 				{
@@ -159,7 +149,7 @@ public class SystemcCodeGen extends CodeGenBase
 
 		GeneratedData data = new GeneratedData();
 		data.setClasses(genModules);
-	data.setQuoteValues(generateFromVdmQuotes());
+		data.setQuoteValues(generateFromVdmQuotes());
 		data.setWarnings(warnings);
 
 		return data;
@@ -225,7 +215,7 @@ public class SystemcCodeGen extends CodeGenBase
 	}
 
 	@Override
-	protected void preProcessAst(List<INode> ast) throws AnalysisException
+	protected void preProcessAst(List<org.overture.ast.node.INode> ast) throws AnalysisException
 	{
 		super.preProcessAst(ast);
 
@@ -263,6 +253,7 @@ public class SystemcCodeGen extends CodeGenBase
 		catch (org.overture.codegen.ir.analysis.AnalysisException e)
 		{
 			log.error("Could not generate expression: " + exp);
+			System.out.println("Could not generate expression: " + exp.toString());
 			e.printStackTrace();
 			return null;
 		}
@@ -279,6 +270,44 @@ public class SystemcCodeGen extends CodeGenBase
 
 		return modules;
 	}
+
+	@Override
+	protected boolean isTestCase(IRStatus<? extends PIR> status) {
+		if(status.getIrNode().getSourceNode() != null)
+			return super.isTestCase(status);
+		else
+			return false;
+	}
+
+	/*
+	protected void generateSyscModules(List<IRStatus<PIR>> statuses)
+	{
+		try
+		{
+			Collection<? extends IRStatus<PIR>> moduleDefinitions = new SyscModuleGenerator().generateModules(IRStatus.extract(statuses, ADefaultClassDeclIR.class));
+
+			for(IRStatus<PIR> m : moduleDefinitions)
+			{
+
+				modules.add(m.getIrNodeName());
+
+				for(IRStatus<PIR> orig : statuses)
+				{
+					if(orig.getIrNodeName() == m.getIrNodeName())
+					{
+						statuses.remove(orig);
+					}
+				}
+				statuses.add(m);
+			}
+		}
+		catch (org.overture.codegen.ir.analysis.AnalysisException e)
+		{
+			log.error("Could not generate module headers:" + e.getMessage());
+		}
+	}
+
+	 */
 }
 
 

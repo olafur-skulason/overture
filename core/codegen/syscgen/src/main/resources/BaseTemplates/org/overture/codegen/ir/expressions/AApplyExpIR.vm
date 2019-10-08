@@ -1,0 +1,7 @@
+#set( $root = $SystemcFormat.format($node.getRoot()))
+#set( $args = $SystemcFormat.format($node.getArgs()))
+##
+#if(false)
+#else
+${root}($args)##
+#end

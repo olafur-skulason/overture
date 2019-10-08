@@ -20,12 +20,11 @@ import org.overture.codegen.trans.funcvalues.FuncValAssistant;
 import org.overture.codegen.ir.expressions.*;
 import org.overture.codegen.ir.declarations.*;
 import org.overture.codegen.utils.GeneralUtils;
-import org.overture.typechecker.assistant.type.PTypeAssistantTC;
 import org.overture.codegen.ir.statements.ABlockStmIR;
 import org.overture.codegen.assistant.LocationAssistantIR;
 import org.overture.ast.intf.lex.ILexLocation;
-import org.overture.ast.types.PType;
 import org.overture.ast.util.ClonableString;
+import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 
 public class SystemcFormat
 {
@@ -274,7 +273,7 @@ public class SystemcFormat
 		StringWriter writer = new StringWriter();
 		node.apply(mergeVisitor, writer);
 
-		return writer.toString() + getNumberDereference(node, ignoreContext);
+		return writer.toString();
 	}
 
 	public String formatUnary(SExpIR exp) throws AnalysisException
@@ -303,94 +302,15 @@ public class SystemcFormat
 		return exp == null || exp instanceof AUndefinedExp ? "" : " = " + format(exp);
 	}
 
-	private String getNumberDereference(INode node, boolean ignoreContext)
+	public String formatIdentifierVar(AIdentifierVarExpIR var)
 	{
-		if(ignoreContext && node instanceof SExpIR)
-		{
-			SExpIR exp = (SExpIR) node;
-			STypeIR type = exp.getType();
-
-			if(isNumberDereferenceCandidate(exp))
-			{
-				return findNumberDereferenceCall(type);
-			}
-		}
-
-		INode parent = node.parent();
-
-		if(parent instanceof SNumericBinaryExpIR
-			|| parent instanceof AAbsUnaryExpIR
-			|| parent instanceof AMinusUnaryExpIR
-			|| parent instanceof APlusUnaryExpIR
-			|| parent instanceof AIsolationUnaryExpIR)
-		{
-			SExpIR exp = (SExpIR) node;
-			STypeIR type = exp.getType();
-
-			if(isNumberDereferenceCandidate(exp))
-			{
-				return findNumberDereferenceCall(type);
-			}
-		}
-		// No dereference is needed
-		return "";
+		String varName = var.getName();
+		return varName;
 	}
 
-	private static boolean isNumberDereferenceCandidate(SExpIR node)
-	{
-		boolean fitsCategory = !(node instanceof SNumericBinaryExpIR)
-			&& !(node instanceof ATernaryIfExpIR)
-			&& !(node instanceof SLiteralExpIR)
-			&& !(node instanceof SUnaryExpIR);
+	public static String getString(ClonableString c) { return c.value; }
 
-		boolean isException = node instanceof AHeadUnaryExpIR
-			|| node instanceof AQuoteLiteralExpIR
-			|| node instanceof ACastUnaryExpIR;
-
-		return fitsCategory || isException;
-	}
-
-	private String findNumberDereferenceCall(STypeIR type)
-	{
-		if(type == null || type.parent() instanceof AHistoryExpIR)
-		{
-			return "";
-		}
-
-		final String DOUBLE_VALUE = ".doubleValue()";
-		final String LONG_VALUE = ".longValue()";
-
-		if(info.getAssistantManager().getTypeAssistant().isInt(type))
-		{
-			return LONG_VALUE;
-		}
-		else if(info.getAssistantManager().getTypeAssistant().isRealOrRat(type))
-		{
-			return DOUBLE_VALUE;
-		}
-		else
-		{
-			PTypeAssistantTC typeAssistant = info.getTcFactory().createPTypeAssistant();
-			SourceNode sourceNode = type.getSourceNode();
-
-			if(sourceNode != null && !(sourceNode.getVdmNode() instanceof PType))
-			{
-				PType vdmType = (PType)sourceNode.getVdmNode();
-
-				if(typeAssistant.isNumeric(vdmType, null))
-				{
-					return DOUBLE_VALUE;
-				}
-			}
-
-			return "";
-		}
-	}
-
-	public static String getString(ClonableString c)
-	{
-		return c.value;
-	}
+	public static String getName(ASyscModuleDeclIR m) {return m.getName(); }
 
 	public static boolean isNull(INode node)
 	{

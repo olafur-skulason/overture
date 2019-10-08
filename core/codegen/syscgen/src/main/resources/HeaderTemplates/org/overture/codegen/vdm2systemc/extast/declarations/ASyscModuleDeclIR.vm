@@ -1,0 +1,67 @@
+#pragma once
+
+#foreach($dep in $node.getDependencies())
+\#include $SystemcFormat.getString($dep)
+#end
+#set ($name = $SystemcFormat.getName($node))
+SC_MODULE($name)
+{
+    SC_CTOR($name)
+    {
+#foreach($method in $node.getMethods())
+#if($method.getIsConstructor())
+## TODO: Add initialization from ctor
+#end
+#end
+#set ($cthread = $node.getCThreads())
+#if(!$SystemcFormat.isNull($cthread))
+        SC_CTHREAD($cthread.getMethod())
+        sensitive << clk;
+#end
+    }
+public:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "public" )
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "public" && !$method.getIsConstructor())
+    $SystemcFormat.format($method)
+#end
+#end
+##
+protected:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "protected")
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "protected" && !$method.getIsConstructor())
+    $SystemcFormat.format($method)
+#end
+#end
+##
+private:
+#foreach ( $class in $node.getInnerClasses() )
+##$SystemcFormat.format($class)
+#end
+#foreach ($field in $node.getFields() )
+#if( $field.getAccess() == "private")
+    $SystemcFormat.format($field)
+#end
+#end
+#foreach ($method in $node.getMethods() )
+#if( $method.getAccess() == "private" && !$method.getIsConstructor())
+    $SystemcFormat.format($method)
+#end
+#end
+}
+##

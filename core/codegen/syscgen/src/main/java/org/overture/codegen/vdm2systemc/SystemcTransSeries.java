@@ -5,9 +5,12 @@ import java.util.List;
 
 import org.overture.codegen.ir.IRInfo;
 import org.overture.codegen.ir.analysis.DepthFirstAnalysisAdaptor;
-import org.overture.codegen.trans.IPostCheckCreator;
+import org.overture.codegen.trans.AssignStmTrans;
 import org.overture.codegen.trans.assistants.TransAssistantIR;
 import org.overture.codegen.trans.funcvalues.FuncValAssistant;
+import org.overture.codegen.trans.letexps.FuncTrans;
+import org.overture.codegen.vdm2systemc.transformations.CPUInitializationTransformation;
+import org.overture.codegen.vdm2systemc.transformations.DependenciesTransformation;
 
 public class SystemcTransSeries
 {
@@ -56,6 +59,9 @@ public class SystemcTransSeries
 
         // Construct the transformations
 		DependenciesTransformation dependenciesTransformation = new DependenciesTransformation(info);
+		FuncTrans funcTr = new FuncTrans(transAssist);
+		AssignStmTrans assignTr = new AssignStmTrans(transAssist);
+		CPUInitializationTransformation cpuInitializationTransformation = new CPUInitializationTransformation();
 		/*
         RenamedTrans renamedTr = new RenamedTrans(transAssist);
         ModuleRenamerTrans moduleRenamerTr = new ModuleRenamerTrans(transAssist);
@@ -63,10 +69,8 @@ public class SystemcTransSeries
         FieldOrderTrans fieldOrderTr = new FieldOrderTrans();
         AtomicStmTrans atomicTr = new AtomicStmTrans(transAssist, varMan.atomicTmpVar());
         NonDetStmTrans nonDetTr = new NonDetStmTrans(transAssist);
-        FuncTrans funcTr = new FuncTrans(transAssist);
         DivideTrans divideTr = new DivideTrans(info);
         CallObjStmTrans callObjTr = new CallObjStmTrans(info);
-        AssignStmTrans assignTr = new AssignStmTrans(transAssist);
         PrePostTrans prePostTr = new PrePostTrans(info);
         IfExpTrans ifExpTr = new IfExpTrans(transAssist);
         PolyFuncTrans polyTr = new PolyFuncTrans(transAssist);
@@ -101,45 +105,10 @@ public class SystemcTransSeries
         // End concurrency transformations
 
         // Set up order of transformations
-		/*
-        series.add(renamedTr);
-        series.add(moduleRenamerTr);
-        series.add(libWarnTr);
-        series.add(fieldOrderTr);
-        series.add(atomicTr);
-        series.add(nonDetTr);
-        series.add(divideTr);
-        series.add(assignTr);
-        series.add(callObjTr);
-        series.add(polyTr);
-        series.add(funcTr);
-        series.add(prePostTr);
-        series.add(ifExpTr);
-        series.add(funcValTr);
-        series.add(letBeStTr);
-        series.add(whileTr);
-        series.add(exp2stmTr);
-        series.add(tracesTr);
-        series.add(patternTr);
-        series.add(preCheckTr);
-        series.add(postCheckTr);
-        series.add(isExpSimplifyTr);
-        series.add(isExpTr);
-        series.add(unionTypeTr);
-        series.add(javaToStringTr);
-        series.add(sentinelTr);
-        series.add(mutexTr);
-        series.add(mainClassTr);
-        series.add(seqConvTr);
-        series.add(evalPermPredTr);
-        series.add(recTr);
-        series.add(ctorTr);
-        series.add(impTr);
-        series.add(slAccessTr);
-        series.add(junitTr);
-		*/
-
 		series.add(dependenciesTransformation);
+		series.add(funcTr);
+		series.add(assignTr);
+		series.add(cpuInitializationTransformation);
 
 		return series;
 	}

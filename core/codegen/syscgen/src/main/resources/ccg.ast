@@ -1,0 +1,41 @@
+Packages
+base org.overture.codegen.vdm2systemc.extast.node;
+analysis org.overture.codegen.vdm2systemc.extast.analysis;
+
+Tokens
+    java_String = 'java:java.lang.String';
+    java_Boolean = 'java:java.lang.Boolean';
+  eString ='java:org.overture.ast.util.ClonableString';
+
+Abstract Syntax Tree
+
+IR = #decl
+   ;
+
+#decl {-> package='org.overture.codegen.vdm2systemc.extast.declarations'}
+    = {syscModule}
+       [originalClass]:IR.#decl.#Class
+       (dependencies):eString*
+       [incomingMsg]:remoteMethodCall*
+       [outgoingMsg]:remoteMethodCall*
+       [name]:java_String
+       [fields]:IR.#decl.field*
+       [methods]:IR.#decl.method*
+       [CThreads]:thread
+       [top]:java_Boolean
+    ;
+
+remoteMethodCall {-> package='org.overture.codegen.vdm2systemc.extast.expressions'}
+    = {remote}
+        [caller]:IR.#stm
+        [callee]:IR.#stm
+    ;
+
+thread {-> package='org.overture.codegen.vdm2systemc.extast.declarations'}
+    = {thread}
+        [method]:java_String
+        [period]:IR.#exp
+        [jitter]:IR.#exp
+        [delay]:IR.#exp
+        [offset]:IR.#exp
+    ;

@@ -1,0 +1,5 @@
+#set( $exp = $SystemcFormat.format($node.getExp()) )
+#set( $body = $SystemcFormat.format($node.getBody()) )
+##
+while(${exp})
+${body}

@@ -33,6 +33,7 @@ public class SystemcCodeGenMain
 		SystemcSettings systemcSettings = new SystemcSettings();
 
 		IRSettings irSettings = new IRSettings();
+		irSettings.setGenerateConc(true);
 
 		List<String> listArgs = Arrays.asList(args);
 		String exp = null;

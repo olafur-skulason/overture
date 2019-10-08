@@ -1,0 +1,7 @@
+#if ( $SystemcFormat.isNull($node.getExp()) )
+return;
+#elseif ( $SystemcFormat.isVoidType($node.getExp().getType()) )
+$SystemcFormat.format($node.getExp());
+#else
+return $SystemcFormat.format($node.getExp());
+#end

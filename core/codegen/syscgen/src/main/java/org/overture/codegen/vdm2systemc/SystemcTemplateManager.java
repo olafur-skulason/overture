@@ -30,15 +30,15 @@ public class SystemcTemplateManager extends TemplateManager
 
 			InputStream file = nodeClass.getResourceAsStream( '/' + path.replace("\\", "/"));
 
-			System.out.println("Attempting to load template from: " + path);
+			//System.out.println("Attempting to load template from: " + path);
 			if(file == null)
 			{
-				System.out.println("Failed to load template.");
+				//System.out.println("Failed to load template.");
 				path = derivePath(root, nodeClass);
 				filePath = root;
 				file = nodeClass.getResourceAsStream('/' + path.replace("\\", "/"));
-				System.out.println("Attempting to load base template: " + path);
-				System.out.println(file == null ? "FAILURE" : "SUCCESS");
+				//System.out.println("Attempting to load base template: " + path);
+				//System.out.println(file == null ? "FAILURE" : "SUCCESS");
 			}
 
 			return new TemplateData(templateLoadRef, derivePath(filePath, nodeClass));

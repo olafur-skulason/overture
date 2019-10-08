@@ -1,0 +1,31 @@
+system System
+
+instance variables
+
+public a : Active := new Active();
+
+public cpu_a : CPU := new CPU(<FP>, 1e6);
+
+operations
+
+public System: () ==> System
+System() == (
+    cpu_a.deploy(a);
+)
+
+end System
+
+class Active
+
+instance variables
+
+public counter : int := 0;
+
+operations
+
+public F: () ==> ()
+F() == (
+    counter := counter +1
+);
+
+end Active

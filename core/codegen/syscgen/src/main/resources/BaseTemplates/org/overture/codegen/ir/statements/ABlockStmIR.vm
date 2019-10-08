@@ -3,17 +3,15 @@
 #end
 ## Local definitions:
 ##
-	#foreach( $dec in $node.getLocalDefs() )
-	##$SystemcFormat.formatVdmSource($dec)
-	$SystemcFormat.format($dec)
-	#end
+#foreach( $dec in $node.getLocalDefs() )
+    $SystemcFormat.format($dec)
+#end
 ##
 ## Statements:
 ##
-	#foreach( $stm in $node.getStatements() )
-	##$SystemcFormat.format(VdmSource($stm)
-	$SystemcFormat.format($stm)
-	#end
+#foreach( $stm in $node.getStatements() )
+    $SystemcFormat.format($stm)
+#end
 ##
 #if ($SystemcFormat.isScoped($node))
 }

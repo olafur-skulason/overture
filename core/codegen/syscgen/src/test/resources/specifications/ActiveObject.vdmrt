@@ -1,0 +1,16 @@
+class Active
+
+instance variables
+
+public counter: nat := 0
+
+operations
+
+public T : () ==> ()
+T() == skip;
+
+thread
+
+periodic (100,100,100,100) (T)
+
+end Active

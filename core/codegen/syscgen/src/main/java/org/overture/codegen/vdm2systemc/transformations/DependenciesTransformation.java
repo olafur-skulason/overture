@@ -1,4 +1,4 @@
-package org.overture.codegen.vdm2systemc;
+package org.overture.codegen.vdm2systemc.transformations;
 
 import org.overture.ast.util.ClonableString;
 import org.overture.codegen.ir.IRInfo;
@@ -8,6 +8,7 @@ import org.overture.codegen.ir.declarations.ACpuClassDeclIR;
 import org.overture.codegen.ir.declarations.ADefaultClassDeclIR;
 import org.overture.codegen.ir.declarations.ASystemClassDeclIR;
 import org.overture.codegen.ir.declarations.SClassDeclIR;
+import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -20,20 +21,20 @@ public class DependenciesTransformation extends DepthFirstAnalysisAdaptor
 
     @Override
     public void caseADefaultClassDeclIR(ADefaultClassDeclIR node) throws AnalysisException {
-        handleClass(node);
+        node.setDependencies(handleClass(node.getName()));
     }
 
     @Override
     public void caseASystemClassDeclIR(ASystemClassDeclIR node) throws AnalysisException {
-        handleClass(node);
+        node.setDependencies(handleClass(node.getName()));
     }
 
     @Override
     public void caseACpuClassDeclIR(ACpuClassDeclIR node) throws AnalysisException {
-        handleClass(node);
+        node.setDependencies(handleClass(node.getName()));
     }
 
-    private void handleClass(SClassDeclIR classDecl)
+    private List<ClonableString> handleClass(String name)
     {
 
         List<ClonableString> dependencies = new LinkedList<>();
@@ -50,12 +51,12 @@ public class DependenciesTransformation extends DepthFirstAnalysisAdaptor
         // TODO: Determine usage of internal objects
         for(SClassDeclIR classes : info.getClasses())
         {
-            if(classes.getName() != classDecl.getName()) {
+            if(classes.getName() != name) {
                 dependencies.add(new ClonableString(String.format("\"%s.h\"", classes.getName())));
             }
         }
 
-        classDecl.setDependencies(dependencies);
+        return dependencies;
     }
 }
 
