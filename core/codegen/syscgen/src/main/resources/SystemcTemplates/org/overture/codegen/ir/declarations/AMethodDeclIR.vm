@@ -9,12 +9,16 @@
 ##
 #set( $params = $SystemcFormat.format($node.getFormalParams()))
 ##
+#if ($node.getTemplateTypes().size() > 0)
+
+template<$SystemcFormat.formatTemplateTypes($node.getTemplateTypes())>
+#end
 #set ( $returnType = "" )
 #if (!$node.getIsConstructor())
 #set ( $returnType = $SystemcFormat.format($node.getMethodType().getResult()) + " ")
 #end
 ##
-#set ( $body = $SystemcFormat.formatOperationBody($node.getBody()))
+#set ( $body = $SystemcFormat.formatOperationBody($node))
 #set ( $parent = $node.parent() + "::")
 $static$returnType$parent$node.getName()(${params})
 $body

@@ -1,0 +1,10 @@
+#set( $args = $SystemcFormat.formatArgs($node.getArgs()) )
+#set( $field = $node.getFieldName() )
+#set( $obj = $SystemcFormat.format($node.getDesignator()) )
+##
+#set( $return = "")
+#if (!$SystemcFormat.isVoidType($node.getType()))
+	#set( $return = "return ")
+#end
+##
+${return}${obj}.${field}(${args});

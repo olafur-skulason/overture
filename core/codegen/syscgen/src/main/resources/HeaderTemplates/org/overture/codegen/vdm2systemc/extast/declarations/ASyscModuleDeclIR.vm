@@ -1,7 +1,7 @@
 #pragma once
 
 #foreach($dep in $node.getDependencies())
-\#include $SystemcFormat.getString($dep)
+#include $SystemcFormat.getString($dep)
 #end
 #set ($name = $SystemcFormat.getName($node))
 SC_MODULE($name)
@@ -10,7 +10,9 @@ SC_MODULE($name)
     {
 #foreach($method in $node.getMethods())
 #if($method.getIsConstructor())
-## TODO: Add initialization from ctor
+#foreach($ctorStm in $method.getBody().getStatements())
+        $SystemcFormat.format($ctorStm)
+#end
 #end
 #end
 #set ($cthread = $node.getCThreads())

@@ -6,6 +6,9 @@
 #if ($node.getStatic())
 #set( $static = "static ")
 #end
+#if ($node.getTemplateTypes().size() > 0)
+template<$SystemcFormat.formatTemplateTypes($node.getTemplateTypes())>
+#end
 ##
 #set( $params = $SystemcFormat.format($node.getFormalParams()))
 ##

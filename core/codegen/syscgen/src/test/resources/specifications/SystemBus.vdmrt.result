@@ -1,0 +1,308 @@
+#pragma once
+
+SC_MODULE(System)
+{
+    SC_CTOR(System)
+    {
+        x.transfer_outputs.bind(transfer.outputs[TRANSFER_IDENTIFIER::x]);
+        x.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::x]);
+        y.transfer_outputs.bind(transfer.outputs[TRANSFER_IDENTIFIER::y]);
+        y.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::y]);
+    }
+public:
+    cpu_x x  = cpu_x("System.x");
+    cpu_y y  = cpu_y("System.y");
+    bus_transfer transfer  = bus_transfer("transfer");
+protected:
+private:
+}
+
+##########
+#include "System.h"
+
+
+int main()
+{
+    System top = System("System";
+
+    sc_trace_file *tf;
+    tf->sc_create_vcd_trace_file("WaveForm");
+    tf->set_time_unit(1,SC_MS);
+    // Include desired waveform signals here.
+    sc_start(1, SC_SEC);
+
+    sc_close_vcd_trace_file(tf);
+    return 0;
+}
+
+##########
+#pragma once
+
+SC_MODULE(cpu_y)
+{
+    SC_CTOR(cpu_y)
+    {
+        b.clk(clk);
+        transfer_input.register_b_transport(this, &cpu_y::transfer_input_handler);
+    }
+public:
+    sc_clock clk  = sc_clock("cpu_y.clk", 100);
+    B b  = B("cpu_y.b");
+    void a_T(int a);
+    tlm_utils::simple_initiator_socket<cpu_y> transfer_output ;
+    tlm_utils::simple_target_socket<cpu_y> transfer_input ;
+    void transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+
+protected:
+private:
+    template<typename result, typename params>
+result write_transfer(int destination, int method, params parameters);
+
+    template<typename params>
+void write_transfer_void(int destination, int method, params parameters);
+
+}
+
+##########
+#include "cpu_y.h"
+
+void cpu_y::a_T(int a)
+{
+    write_socket_void<int>(transfer_ids::a, exposed_methods_A::T, a);
+}
+
+void cpu_y::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+
+    switch(adr)
+    {
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_y::write_transfer(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	socket->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_y::write_transfer_void(int destination, int method, params parameters)
+{
+	write_socket<char, params>(destination, method, parameters);
+}
+
+
+##########
+#pragma once
+
+SC_MODULE(cpu_x)
+{
+    SC_CTOR(cpu_x)
+    {
+        a.clk(clk);
+        transfer_input.register_b_transport(this, &cpu_x::transfer_input_handler);
+    }
+public:
+    sc_clock clk  = sc_clock("cpu_x.clk", 100);
+    A a  = A("cpu_x.a");
+    tlm_utils::simple_initiator_socket<cpu_x> transfer_output;
+    tlm_utils::simple_target_socket<cpu_x> transfer_input;
+    void transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+protected:
+private:
+    template<typename result, typename params>
+result write_transfer(int destination, int method, params parameters);
+
+    template<typename params>
+void write_transfer_void(int destination, int method, params parameters);
+
+}
+
+##########
+#include "cpu_x.h"
+
+void cpu_x::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+
+    switch(adr)
+    {
+        case exposed_methods_A::T:
+            int result = this->a.T(*reinterpret_cast<int *>(ptr));
+            ptr = reinterpret_cast<unsigned char *>(&result);
+            len = sizeof(int);
+            trans.set_data_ptr(ptr);
+            trans.set_data_length(len);
+            break;
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_x::write_transfer(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	socket->b_transport(*payload, delay);
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_x::write_transfer_void(int destination, int method, params parameters)
+{
+	write_socket<char, params>(destination, method, parameters);
+}
+
+##########
+#pragma once
+
+SC_MODULE(A)
+{
+    SC_CTOR(A)
+    {
+    }
+public:
+    sc_in<bool> clk ;
+    cpu_x * os;
+    void T(int a);
+
+protected:
+private:
+}
+
+##########
+#include "A.h"
+
+void A::T(int a)
+{
+/* skip */
+}
+
+
+##########
+#pragma once
+
+SC_MODULE(B)
+{
+    SC_CTOR(B)
+    {
+    }
+public:
+    sc_in<bool> clk ;
+    cpu_y * os;
+    void R();
+
+protected:
+private:
+}
+
+##########
+#include "B.h"
+
+void B::R()
+{
+    os->a_T(1);
+}
+
+
+##########
+#pragma once
+
+SC_MODULE(transfer)
+{
+	SC_CTOR(transfer)
+	{
+		for(int i = 0; i < transfer_id_count; i++)
+		{
+			inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+		}
+	}
+
+public:
+	tlm_utils::simple_target_socket_tagged<channel> inputs[TRANSFER_IDENTIFIER::COUNT];
+	tlm_utils::simple_initiator_socket_tagged<channel> outputs[TRANSFER_IDENTIFIER::COUNT];
+	void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+private:
+	sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
+	sc_mutex channel_mutex;
+	tlm::tlm_phase phase = tlm::BEGIN_REQ;
+	sc_time bus_speed = sc_time(100000, SC_NS);
+};
+
+##########
+#include "transfer.h"
+
+void transfer::send_B_A(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_phase phase = tlm::BEGIN_REQ;
+    B_A_out.nb_transport_fw(payload, phase, delay);
+}
+
+void transfer::b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay)
+{
+	sc_dt::uint64 address = trans.get_address();
+	sc_dt::uint64 masked_address;
+	sc_dt::uint64 target = resolve_address(address, masked_address);
+	channel_mutex.lock();
+	trans.set_address(masked_address);
+	outputs[target]->b_transport(trans, bus_speed);
+	channel_mutex.unlock();
+}
+
+sc_dt::uint64 transfer::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+{
+	masked_address = 0x00000000FFFFFFFF & address;
+	return address >> 32;
+}
+
+##########

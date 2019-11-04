@@ -9,22 +9,27 @@ import org.overture.codegen.trans.AssignStmTrans;
 import org.overture.codegen.trans.assistants.TransAssistantIR;
 import org.overture.codegen.trans.funcvalues.FuncValAssistant;
 import org.overture.codegen.trans.letexps.FuncTrans;
-import org.overture.codegen.vdm2systemc.transformations.CPUInitializationTransformation;
-import org.overture.codegen.vdm2systemc.transformations.DependenciesTransformation;
+import org.overture.codegen.vdm2systemc.transformations.*;
 
 public class SystemcTransSeries
 {
 
 	private List<DepthFirstAnalysisAdaptor> series;
+	private List<DepthFirstAnalysisAdaptor> preAnalysisSeries;
 	private FuncValAssistant funcValAssist;
 
 	private SystemcCodeGen codeGen;
 
-	public SystemcTransSeries(SystemcCodeGen codeGen)
+	private String rootName;
+
+
+	public SystemcTransSeries(SystemcCodeGen codeGen, String rootName)
 	{
 		this.series = new LinkedList<>();
+		this.preAnalysisSeries = new LinkedList<>();
 		this.funcValAssist = new FuncValAssistant();
 		this.codeGen = codeGen;
+		this.rootName = rootName;
 		setupAnalysis();
 	}
 
@@ -38,78 +43,36 @@ public class SystemcTransSeries
 		return funcValAssist;
 	}
 
-	private List<DepthFirstAnalysisAdaptor> setupAnalysis()
+	private void setupAnalysis()
 	{
 		// Data and functionality to support the transformations
 
         IRInfo info = codeGen.getIRGenerator().getIRInfo();
-        /*
-        JavaVarPrefixManager varMan = codeGen.getVarPrefixManager();
-        IterationVarPrefixes iteVarPrefixes = varMan.getIteVarPrefixes();
-        Exp2StmVarPrefixes exp2stmPrefixes = varMan.getExp2stmPrefixes();
-        TraceNames tracePrefixes = varMan.getTracePrefixes();
-        FuncValPrefixes funcValPrefixes = varMan.getFuncValPrefixes();
-        PatternVarPrefixes patternPrefixes = varMan.getPatternPrefixes();
-        UnionTypeVarPrefixes unionTypePrefixes = varMan.getUnionTypePrefixes();
-        List<INode> cloneFreeNodes = codeGen.getJavaFormat().getValueSemantics().getCloneFreeNodes();
-		*/
         TransAssistantIR transAssist = codeGen.getTransAssistant();
-        //IPostCheckCreator postCheckCreator = new JavaPostCheckCreator(varMan.postCheckMethodName());
 
-
-        // Construct the transformations
+		// Construct the transformations
 		DependenciesTransformation dependenciesTransformation = new DependenciesTransformation(info);
 		FuncTrans funcTr = new FuncTrans(transAssist);
 		AssignStmTrans assignTr = new AssignStmTrans(transAssist);
 		CPUInitializationTransformation cpuInitializationTransformation = new CPUInitializationTransformation();
-		/*
-        RenamedTrans renamedTr = new RenamedTrans(transAssist);
-        ModuleRenamerTrans moduleRenamerTr = new ModuleRenamerTrans(transAssist);
-        UnsupportedLibWarningTrans libWarnTr = new UnsupportedLibWarningTrans(transAssist);
-        FieldOrderTrans fieldOrderTr = new FieldOrderTrans();
-        AtomicStmTrans atomicTr = new AtomicStmTrans(transAssist, varMan.atomicTmpVar());
-        NonDetStmTrans nonDetTr = new NonDetStmTrans(transAssist);
-        DivideTrans divideTr = new DivideTrans(info);
-        CallObjStmTrans callObjTr = new CallObjStmTrans(info);
-        PrePostTrans prePostTr = new PrePostTrans(info);
-        IfExpTrans ifExpTr = new IfExpTrans(transAssist);
-        PolyFuncTrans polyTr = new PolyFuncTrans(transAssist);
-        FuncValTrans funcValTr = new FuncValTrans(transAssist, funcValAssist, funcValPrefixes);
-        ILanguageIterator langIte = new JavaLanguageIterator(transAssist, iteVarPrefixes);
-        LetBeStTrans letBeStTr = new LetBeStTrans(transAssist, langIte, iteVarPrefixes);
-        WhileStmTrans whileTr = new WhileStmTrans(transAssist, varMan.whileCond());
-        Exp2StmTrans exp2stmTr = new Exp2StmTrans(iteVarPrefixes, transAssist, consCounterData(), langIte, exp2stmPrefixes);
-        PatternTrans patternTr = new PatternTrans(iteVarPrefixes, transAssist, patternPrefixes, varMan.casesExp());
-        PreCheckTrans preCheckTr = new PreCheckTrans(transAssist, new JavaValueSemanticsTag(false));
-        PostCheckTrans postCheckTr = new PostCheckTrans(postCheckCreator, transAssist, varMan.funcRes(), new JavaValueSemanticsTag(false));
-        IsExpSimplifyTrans isExpSimplifyTr = new IsExpSimplifyTrans(transAssist);
-        IsExpTrans isExpTr = new IsExpTrans(transAssist, varMan.isExpSubject());
-        SeqConvTrans seqConvTr = new SeqConvTrans(transAssist);
-        TracesTrans tracesTr = new TracesTrans(transAssist, iteVarPrefixes, tracePrefixes, langIte, new JavaCallStmToStringBuilder(), cloneFreeNodes);
-        UnionTypeTrans unionTypeTr = new UnionTypeTrans(transAssist, unionTypePrefixes, cloneFreeNodes);
-        JavaToStringTrans javaToStringTr = new JavaToStringTrans(info);
-        RecMethodsTrans recTr = new RecMethodsTrans(codeGen.getJavaFormat().getRecCreator());
-        ConstructorTrans ctorTr = new ConstructorTrans(transAssist, OBJ_INIT_CALL_NAME_PREFIX);
-        ImportsTrans impTr = new ImportsTrans(info);
-        SlAccessTrans slAccessTr = new SlAccessTrans();
-        JUnit4Trans junitTr = new JUnit4Trans(transAssist, codeGen);
-		*/
-
-        // Start concurrency transformations
-		/*
-        SentinelTrans sentinelTr = new SentinelTrans(info, varMan.getConcPrefixes());
-        MainClassConcTrans mainClassTr = new MainClassConcTrans(info, varMan.getConcPrefixes());
-        MutexDeclTrans mutexTr = new MutexDeclTrans(info, varMan.getConcPrefixes());
-        EvalPermPredTrans evalPermPredTr = new EvalPermPredTrans(transAssist, varMan.getConcPrefixes());
-		*/
-        // End concurrency transformations
+		BusInitializationTransformation busInitializationTransformation = new BusInitializationTransformation();
 
         // Set up order of transformations
 		series.add(dependenciesTransformation);
 		series.add(funcTr);
 		series.add(assignTr);
 		series.add(cpuInitializationTransformation);
+		series.add(busInitializationTransformation);
 
-		return series;
+
+		// Construct pre analysis transformations
+		RemoteMethodCallTransformations remoteMethodCallTransformations = new RemoteMethodCallTransformations(rootName);
+
+		// Set up pre analysis transformation order
+		preAnalysisSeries.add(remoteMethodCallTransformations);
+	}
+
+	public List<DepthFirstAnalysisAdaptor> getPreArchitecturalSeries() {
+		return preAnalysisSeries;
 	}
 }

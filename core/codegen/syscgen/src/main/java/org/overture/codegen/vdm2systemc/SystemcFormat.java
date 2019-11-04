@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.overture.ast.expressions.AUndefinedExp;
 import org.overture.codegen.ir.name.ATypeNameIR;
 import org.overture.codegen.ir.statements.AForLoopStmIR;
+import org.overture.codegen.ir.statements.APlainCallStmIR;
 import org.overture.codegen.merging.MergeVisitor;
 import org.overture.codegen.merging.TemplateCallable;
 import org.overture.codegen.ir.*;
@@ -140,9 +141,14 @@ public class SystemcFormat
 		return writer.toString();
 	}
 
-	public String formatOperationBody(SStmIR body) throws AnalysisException
+	public String formatOperationBody(AMethodDeclIR method) throws AnalysisException
 	{
+		SStmIR body = method.getBody();
 		String NEWLINE = "\n";
+		if(isSocketWrite(method) || isSocketWriteVoid(method) || isSocketHandler(method))
+		{
+			return ""; // Handled in template file.
+		}
 		if(body == null)
 		{
 			return ";";
@@ -316,4 +322,41 @@ public class SystemcFormat
 	{
 		return node == null;
 	}
+
+	public static String getCallSeparator(APlainCallStmIR stm)
+	{
+		// TODO: Expand to return -> if class type is a pointer.
+		return ".";
+	}
+
+	public static boolean isVoidType(STypeIR node)
+	{
+		return node instanceof AVoidTypeIR;
+	}
+
+	public static boolean isSocketHandler(AMethodDeclIR method) {
+		return method.getName().endsWith("_input_handler");
+	}
+
+	public boolean isSocketWrite(AMethodDeclIR method) {
+		return method.getName().startsWith("write_") && method.getFormalParams().size() == 3 && method.getTemplateTypes().size() == 2;
+	}
+
+	public boolean isSocketWriteVoid(AMethodDeclIR method) {
+		return method.getName().startsWith("write_") && method.getName().endsWith("_void") && method.getFormalParams().size() == 3 && method.getTemplateTypes().size() == 1;
+	}
+
+	public String formatTemplateTypes(List<ATemplateTypeIR> templateTypes) throws AnalysisException
+	{
+		StringWriter writer = new StringWriter();
+		writer.append(format(templateTypes.get(0)));
+
+		for(int i = 1; i < templateTypes.size(); i++)
+		{
+			writer.append(", " + format(templateTypes.get(i)));
+		}
+		return writer.toString();
+	}
+
+
 }

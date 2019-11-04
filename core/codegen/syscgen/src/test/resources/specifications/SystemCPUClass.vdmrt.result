@@ -1,1 +1,80 @@
-Not it.
+#pragma once
+
+SC_MODULE(System)
+{
+    SC_CTOR(System)
+    {
+    }
+public:
+    cpu_cpu_a cpu_a  = cpu_cpu_a("System.cpu_a");
+protected:
+private:
+}
+
+##########
+#include "System.h"
+
+
+int main()
+{
+    System top = System("System";
+
+    sc_trace_file *tf;
+    tf->sc_create_vcd_trace_file("WaveForm");
+    tf->set_time_unit(1,SC_MS);
+    // Include desired waveform signals here.
+    sc_start(1, SC_SEC);
+
+    sc_close_vcd_trace_file(tf);
+    return 0;
+}
+
+##########
+#pragma once
+
+SC_MODULE(cpu_cpu_a)
+{
+    SC_CTOR(cpu_cpu_a)
+    {
+        a.clk(clk);
+    }
+public:
+    Active a  = Active("cpu_cpu_a.a");
+    sc_clock clk  = sc_clock("cpu_cpu_a.clk", 100);
+protected:
+private:
+}
+
+##########
+#include "cpu_cpu_a.h"
+
+
+
+##########
+#pragma once
+
+SC_MODULE(Active)
+{
+    SC_CTOR(Active)
+    {
+    }
+public:
+    int counter  = 0;
+    sc_in<bool> clk ;
+    void F();
+
+protected:
+private:
+}
+
+##########
+#include "Active.h"
+
+void Active::F()
+{
+    counter = counter + 1;
+
+}
+
+
+##########

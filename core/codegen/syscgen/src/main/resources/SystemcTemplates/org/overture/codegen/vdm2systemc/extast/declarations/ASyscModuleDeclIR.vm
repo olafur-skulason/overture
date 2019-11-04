@@ -6,7 +6,52 @@
 ##end
 #foreach ($method in $node.getMethods())
 #if (!$method.getIsConstructor())
-$SystemcFormat.format($method)
+$SystemcFormat.format($method)##
+#if ($SystemcFormat.isSocketHandler($method))
+#set($colons = '::')
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+
+    switch(adr)
+    {
+        default:
+            payload.set_response_status(tlm${colons}TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm${colons}TLM_OK_RESPONSE);
+}
+#elseif ($SystemcFormat.isSocketWrite($method))
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	socket->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+#elseif ($SystemcFormat.isSocketWriteVoid($method))
+{
+	write_socket<char, params>(destination, method, parameters);
+}
+#end
 #end
 #end
 

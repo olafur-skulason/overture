@@ -5,30 +5,40 @@ analysis org.overture.codegen.vdm2systemc.extast.analysis;
 Tokens
     java_String = 'java:java.lang.String';
     java_Boolean = 'java:java.lang.Boolean';
-  eString ='java:org.overture.ast.util.ClonableString';
+    eString ='java:org.overture.ast.util.ClonableString';
 
 Abstract Syntax Tree
 
 IR = #decl
+    | #stm
    ;
 
 #decl {-> package='org.overture.codegen.vdm2systemc.extast.declarations'}
     = {syscModule}
        [originalClass]:IR.#decl.#Class
        (dependencies):eString*
-       [incomingMsg]:remoteMethodCall*
-       [outgoingMsg]:remoteMethodCall*
+       [incomingMsg]:IR.#stm.remoteMethodCall*
+       [outgoingMsg]:IR.#stm.remoteMethodCall*
        [name]:java_String
        [fields]:IR.#decl.field*
        [methods]:IR.#decl.method*
        [CThreads]:thread
        [top]:java_Boolean
+    | {syscBusModule}
+        [name]:java_String
+        [channels]:IR.#stm.remoteMethodCall*
     ;
 
-remoteMethodCall {-> package='org.overture.codegen.vdm2systemc.extast.expressions'}
-    = {remote}
-        [caller]:IR.#stm
-        [callee]:IR.#stm
+#stm {-> package='org.overture.codegen.vdm2systemc.extast.statements'}
+    = {remoteMethodCall}
+        [type]:IR.#type
+        [name]:java_String
+        [called]:java_String
+        [callee]:java_String
+        [args]:IR.#exp*
+    | {sensitive}
+        [input]:java_String
+        [method]:java_String
     ;
 
 thread {-> package='org.overture.codegen.vdm2systemc.extast.declarations'}

@@ -1,3 +1,4 @@
 To String Extensions
 
 %IR->#decl->syscModule = [name]
+%IR->#decl->syscBusModue = [name]

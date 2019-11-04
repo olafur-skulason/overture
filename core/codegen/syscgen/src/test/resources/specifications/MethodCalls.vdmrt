@@ -1,0 +1,28 @@
+class A
+
+operations
+
+public one: () ==> int
+one() == return 1;
+
+end A
+
+class Class
+
+instance variables
+
+private a: A := new A();
+
+operations
+
+public Caller: () ==> ()
+Caller() == (
+    dcl v: int := a.one();
+    Called();
+
+);
+
+public Called: () ==> ()
+Called() == skip;
+
+end Class

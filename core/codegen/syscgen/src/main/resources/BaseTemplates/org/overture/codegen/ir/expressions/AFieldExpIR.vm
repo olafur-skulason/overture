@@ -1,0 +1,3 @@
+#set ( $field = "$SystemcFormat.format($node.getObject()).$node.getMemberName()" )
+##
+${field}##

@@ -1,7 +1,37 @@
 #pragma once
 
-#include <list>
-#include <systemc>
+SC_MODULE(System)
+{
+    SC_CTOR(System)
+    {
+    }
+public:
+    Active a  = Active("System.a");
+protected:
+private:
+}
+
+##########
+#include "System.h"
+
+
+int main()
+{
+    System top = System("System";
+
+    sc_trace_file *tf;
+    tf->sc_create_vcd_trace_file("WaveForm");
+    tf->set_time_unit(1,SC_MS);
+    // Include desired waveform signals here.
+    sc_start(1, SC_SEC);
+
+    sc_close_vcd_trace_file(tf);
+    return 0;
+}
+
+##########
+#pragma once
+
 SC_MODULE(Active)
 {
     SC_CTOR(Active)
@@ -24,5 +54,6 @@ void Active::T()
 {
 /* skip */
 }
+
 
 ##########

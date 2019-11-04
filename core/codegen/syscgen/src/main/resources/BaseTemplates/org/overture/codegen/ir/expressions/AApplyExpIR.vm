@@ -3,5 +3,5 @@
 ##
 #if(false)
 #else
-${root}($args)##
+$root($args)##
 #end

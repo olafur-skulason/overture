@@ -1,0 +1,41 @@
+system System
+
+instance variables
+
+public x: CPU := new CPU(<FP>, 100);
+public y: CPU := new CPU(<FP>, 100);
+
+public static a: A := new A();
+public static b: B := new B();
+
+public transfer: BUS := new BUS(<CSMACD>, 100, {x, y});
+
+operations
+
+public System: () ==> System
+System() == (
+    x.deploy(a);
+    y.deploy(b);
+);
+
+end System
+
+class A
+
+operations
+
+public T: nat ==> ()
+T(a) == skip;
+
+end A
+
+class B
+
+operations
+
+public R: () ==> ()
+R() == (
+	System`a.T(1);
+)
+
+end B

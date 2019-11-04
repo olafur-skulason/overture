@@ -1,5 +1,6 @@
 package org.overture.codegen.vdm2systemc;
 
+import org.eclipse.core.internal.utils.Convert;
 import org.overture.codegen.ir.*;
 import org.overture.codegen.utils.GeneratedData;
 import org.overture.codegen.utils.GeneratedModule;
@@ -15,6 +16,7 @@ import org.overture.codegen.trans.ModuleToClassTransformation;
 import org.overture.codegen.trans.DivideTrans;
 import org.overture.codegen.merging.MergeVisitor;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
+import org.overture.codegen.vdm2systemc.transformations.RemoteMethodCallTransformations;
 
 import java.util.*;
 import java.io.File;
@@ -39,7 +41,6 @@ public class SystemcCodeGen extends CodeGenBase
 		super();
 		this.implementationSystemcFormat = new SystemcFormat(SystemcConstants.SYSTEMC_TEMPLATES_ROOT_FOLDER, SystemcConstants.SYSTEMC_BASE_TEMPLATE_ROOT_FOLDER, generator.getIRInfo());
 		this.headerSystemcFormat = new SystemcFormat(SystemcConstants.SYSTEMC_HEADER_TEMPLATE_ROOT_FOLDER, SystemcConstants.SYSTEMC_BASE_TEMPLATE_ROOT_FOLDER, generator.getIRInfo());
-		this.transSeries = new SystemcTransSeries(this);
 		this.mainClass = null;
 		this.warnings = new LinkedList<>();
 		this.modules = new LinkedList<>();
@@ -73,32 +74,19 @@ public class SystemcCodeGen extends CodeGenBase
 			}
 			else
 			{
-				genModules.add(new GeneratedModule(status.getIrNodeName(), status.getUnsupportedInIr(), new HashSet<IrNodeInfo>(), isTestCase(status)));
+				genModules.add(new GeneratedModule(status.getIrNodeName(), status.getUnsupportedInIr(), new HashSet<>(), isTestCase(status)));
 			}
 		}
+		architecturalAnalysis.FindRoot(canBeGenerated);
+
+		this.transSeries = new SystemcTransSeries(this, architecturalAnalysis.getRootName());
+		RunTransformations(canBeGenerated, this.transSeries.getPreArchitecturalSeries());
 
 		architecturalAnalysis.AnalyseArchitecture(canBeGenerated);
 
-		for (DepthFirstAnalysisAdaptor trans : transSeries.getSeries())
-		{
-			for(IRStatus<PIR> status : canBeGenerated)
-			{
-				try
-				{
-					if (!getInfo().getDeclAssistant().isLibraryName(status.getIrNodeName()))
-					{
-						generator.applyPartialTransformation(status, trans);
-					}
-				}
-				catch(org.overture.codegen.ir.analysis.AnalysisException e)
-				{
-					log.error("Error when generating code for class " +
-						status.getIrNodeName() + ": " + e.getMessage());
-					log.error("Skipping class..");
-					e.printStackTrace();
-				}
-			}
-		}
+		RunTransformations(canBeGenerated, this.transSeries.getSeries());
+
+		ConvertBusToModule.convertBusModules(canBeGenerated);
 
 		//generateSyscModules(canBeGenerated);
 
@@ -153,6 +141,29 @@ public class SystemcCodeGen extends CodeGenBase
 		data.setWarnings(warnings);
 
 		return data;
+	}
+
+	private void RunTransformations(List<IRStatus<PIR>> canBeGenerated, List<DepthFirstAnalysisAdaptor> transformations) {
+		for (DepthFirstAnalysisAdaptor trans : transformations)
+		{
+			for(IRStatus<PIR> status : canBeGenerated)
+			{
+				try
+				{
+					if (!getInfo().getDeclAssistant().isLibraryName(status.getIrNodeName()))
+					{
+						generator.applyPartialTransformation(status, trans);
+					}
+				}
+				catch(org.overture.codegen.ir.analysis.AnalysisException e)
+				{
+					log.error("Error when generating code for class " +
+						status.getIrNodeName() + ": " + e.getMessage());
+					log.error("Skipping class..");
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	public GeneratedModule genSourceModule(MergeVisitor mergeVisitor, IRStatus<SClassDeclIR> status) throws org.overture.codegen.ir.analysis.AnalysisException

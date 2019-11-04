@@ -1,0 +1,70 @@
+#pragma once
+
+#include <list>
+#include <systemc>
+#include "Class.h"
+
+public class A
+{
+public:
+    int one();
+
+    A();
+
+protected:
+private:
+}
+
+##########
+#include "A.h"
+
+int A::one()
+{
+return 1;
+
+}
+A::A()
+{
+
+}
+
+##########
+#pragma once
+
+#include <list>
+#include <systemc>
+#include "A.h"
+
+public class Class
+{
+public:
+    void Caller();
+
+    void Called();
+
+    Class();
+
+protected:
+private:
+    A a  = A();
+}
+
+##########
+#include "Class.h"
+
+void Class::Caller()
+{
+    int v = a.one();
+    Called();
+
+}
+void Class::Called()
+{
+/* skip */
+}
+Class::Class()
+{
+
+}
+
+##########

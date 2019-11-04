@@ -1,3 +1,11 @@
+system System
+
+instance variables
+
+public a: Active := new Active();
+
+end System
+
 class Active
 
 instance variables
