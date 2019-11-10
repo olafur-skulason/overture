@@ -1,0 +1,15 @@
+#set ($name = $node.getModuleName())
+#set ($cpuName = $node.getHostName())
+#set ($case = 'deployed_modules_' + $cpuName + '_t::' + $name)
+#set ($colons = '::')
+case $case:
+    switch(method)
+    {
+#foreach($input in $node.getInputs())
+    $SystemcFormat.format($input)
+#end
+    default:
+        payload.set_response_status(tlm${colons}TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;

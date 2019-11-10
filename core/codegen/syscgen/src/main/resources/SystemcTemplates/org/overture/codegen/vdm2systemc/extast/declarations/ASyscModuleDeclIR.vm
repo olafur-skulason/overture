@@ -9,6 +9,7 @@
 $SystemcFormat.format($method)##
 #if ($SystemcFormat.isSocketHandler($method))
 #set($colons = '::')
+#set($cases = $method.getBody().getStatements())
 {
     tlm::tlm_command cmd = payload.get_command();
     sc_dt::uint64    adr = payload.get_address();
@@ -16,9 +17,13 @@ $SystemcFormat.format($method)##
     unsigned int     len = payload.get_data_length();
     unsigned char*   byt = payload.get_byte_enable_ptr();
     unsigned int     wid = payload.get_streaming_width();
-
-    switch(adr)
+    int module, method;
+    split_address(adr, module, method);
+    switch(module)
     {
+#foreach( $stm in $cases)
+$SystemcFormat.format($stm)
+#end
         default:
             payload.set_response_status(tlm${colons}TLM_COMMAND_ERROR_RESPONSE);
             return;
@@ -27,6 +32,7 @@ $SystemcFormat.format($method)##
     payload.set_response_status(tlm${colons}TLM_OK_RESPONSE);
 }
 #elseif ($SystemcFormat.isSocketWrite($method))
+#set ($busName = $SystemcFormat.getBusName($method))
 {
 	sc_time delay = sc_time(10, SC_NS);
 	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
@@ -41,15 +47,16 @@ $SystemcFormat.format($method)##
 	payload->set_dmi_allowed(false);
 	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
-	socket->b_transport(*payload, delay);
+	${busName}_output->b_transport(*payload, delay);
 
 	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
 	delete payload;
 	return r;
 }
 #elseif ($SystemcFormat.isSocketWriteVoid($method))
+#set ($busName = $SystemcFormat.getBusName($method))
 {
-	write_socket<char, params>(destination, method, parameters);
+	write_${busName}<char, params>(destination, method, parameters);
 }
 #end
 #end

@@ -7,12 +7,14 @@ import org.overture.codegen.ir.name.ATypeNameIR;
 import org.overture.codegen.ir.statements.ABlockStmIR;
 import org.overture.codegen.ir.statements.APeriodicStmIR;
 import org.overture.codegen.ir.types.AClassTypeIR;
+import org.overture.codegen.ir.types.ATemplateTypeIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscBusModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.AThreadThread;
 import org.overture.codegen.vdm2systemc.extast.statements.ARemoteMethodCallStmIR;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SyscModuleGenerator {
 
@@ -21,7 +23,7 @@ public class SyscModuleGenerator {
 
     }
 
-    public ASyscModuleDeclIR generateModule(SClassDeclIR clazz, List<String> knownModules, boolean includeClock)
+    public ASyscModuleDeclIR generateModule(SClassDeclIR clazz, HashMap<String, ASyscModuleDeclIR> knownModules, boolean includeClock)
     {
         ASyscModuleDeclIR module = new ASyscModuleDeclIR();
         module.setName(clazz.getName());
@@ -30,16 +32,18 @@ public class SyscModuleGenerator {
         module.setMetaData(clazz.getMetaData());
         module.setTag(clazz.getTag());
         module.setOriginalClass(clazz);
+        module.setInterfaces(clazz.getInterfaces().stream().map(AInterfaceDeclIR::getName).collect(Collectors.toList()));
 
-        module.setMethods(clazz.getMethods());
+        //noinspection unchecked
+        module.setMethods((List<? extends AMethodDeclIR>) clazz.getMethods().clone());
 
-        List<ARemoteMethodCallStmIR> remoteMethodCalls = accumulateRemotes(module);
-        module.setOutgoingMsg(remoteMethodCalls);
+        List<ARemoteMethodCallStmIR> outgoingMethodCalls = accumulateOutgoingRemotes(module);
+        module.setOutgoingMsg(outgoingMethodCalls);
 
         List<AFieldDeclIR> fields = new LinkedList<>();
         for (AFieldDeclIR field : clazz.getFields()) {
             if(field.getType() instanceof AClassTypeIR) {
-                if(knownModules.contains(((AClassTypeIR) field.getType()).getName())) // If is Module
+                if(knownModules.keySet().contains(((AClassTypeIR) field.getType()).getName())) // If is Module
                 {
                     ANewExpIR initial = new ANewExpIR();
                     ATypeNameIR initialType = new ATypeNameIR();
@@ -51,7 +55,7 @@ public class SyscModuleGenerator {
                     field.setInitial(initial);
                 }
             }
-            fields.add(field);
+            fields.add(field.clone());
         }
 
         if(includeClock && !(module.getName().startsWith("cpu") || module.getName().startsWith("bus"))) {
@@ -85,7 +89,7 @@ public class SyscModuleGenerator {
         return module;
     }
 
-    private List<ARemoteMethodCallStmIR> accumulateRemotes(ASyscModuleDeclIR module) {
+    private List<ARemoteMethodCallStmIR> accumulateOutgoingRemotes(ASyscModuleDeclIR module) {
         List<ARemoteMethodCallStmIR> remoteMethodCalls = new LinkedList<>();
         for(AMethodDeclIR method: module.getMethods())
         {
@@ -104,7 +108,7 @@ public class SyscModuleGenerator {
     {
         if(node instanceof ARemoteMethodCallStmIR) {
 
-            return Arrays.asList((ARemoteMethodCallStmIR)node);
+            return Arrays.asList((ARemoteMethodCallStmIR)node.clone());
         }
         else if(node instanceof ABlockStmIR)
         {
@@ -143,10 +147,11 @@ public class SyscModuleGenerator {
         return clk;
     }
 
-    public ASyscBusModuleDeclIR generateBus(String bus, List<ARemoteMethodCallStmIR> remoteMethodCalls, List<IRStatus<PIR>> statuses) {
+    public ASyscBusModuleDeclIR generateBus(String bus, int connectedElementCount, Long speed) {
         ASyscBusModuleDeclIR busModule = new ASyscBusModuleDeclIR();
         busModule.setName(bus);
-        busModule.setChannels(remoteMethodCalls);
+        busModule.setConnectedElementCount(connectedElementCount);
+        busModule.setSpeed(Math.toIntExact(speed));
 
         return busModule;
     }

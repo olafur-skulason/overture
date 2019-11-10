@@ -1,0 +1,18 @@
+#set ($case = 'exposed_methods_' + $node.getHandlerType() + '_t::' + $node.getHandlerField())
+#set ($handler = $node.getHandlerName())
+#set ($field = $node.getHandlerField())
+#set ($paramType = $node.getParamType())
+#set ($returnType = $SystemcFormat.format($node.getReturnType()))
+#if($returnType == 'void')
+case $case:
+    this->$handler.$field(*reinterpret_cast<$SystemcFormat.format($paramType) *>(ptr));
+    break;##
+#else
+case $case:
+    $returnType result = this->$handler.$field(*reinterpret_cast<$SystemcFormat.format($paramType) *>(ptr));
+    ptr = reinterpret_cast<unsigned char *>(&result);
+    len = sizeof($returnType);
+    trans.set_data_ptr(ptr);
+    trans.set_data_length(len);
+    break;##
+#end

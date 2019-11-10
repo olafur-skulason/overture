@@ -1,2 +1,18 @@
+\#include "${node.getName()}.h"
 
-Bus implementation
+void ${node.getName()}::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+	sc_dt::uint64 address = payload.get_address();
+	sc_dt::uint64 masked_address;
+	sc_dt::uint64 target = resolve_address(address, masked_address);
+	bus_mutex.lock();
+	payload.set_address(masked_address);
+	outputs[target]->b_transport(payload, bus_speed);
+	channel_mutex.unlock();
+}
+
+sc_dt::uint64 ${node.getName()}::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+{
+	masked_address = 0x00000000FFFFFFFF & address;
+	return address >> 32;
+}

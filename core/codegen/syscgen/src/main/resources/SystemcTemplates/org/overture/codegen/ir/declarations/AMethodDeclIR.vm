@@ -1,3 +1,5 @@
+#if (!$node.getAbstract())
+
 #set ( $returnType = "")
 #if (!$node.getIsConstructor())
 #set( $returnType = $SystemcFormat.format($node.getMethodType.getResult() ) )
@@ -10,7 +12,6 @@
 #set( $params = $SystemcFormat.format($node.getFormalParams()))
 ##
 #if ($node.getTemplateTypes().size() > 0)
-
 template<$SystemcFormat.formatTemplateTypes($node.getTemplateTypes())>
 #end
 #set ( $returnType = "" )
@@ -20,5 +21,6 @@ template<$SystemcFormat.formatTemplateTypes($node.getTemplateTypes())>
 ##
 #set ( $body = $SystemcFormat.formatOperationBody($node))
 #set ( $parent = $node.parent() + "::")
-$static$returnType$parent$node.getName()(${params})
+$static$returnType$parent$node.getName()(${params})##
 $body
+#end

@@ -1,0 +1,5 @@
+#set ($designator = $node.getCalled().getDesignator())
+#set ($field = $node.getCalled().getFieldName())
+#set ($name = $designator + '_' + $field)
+#set ($params = $SystemcFormat.formatArgs($node.getCalled().getArgs()))
+os->$name($params);##

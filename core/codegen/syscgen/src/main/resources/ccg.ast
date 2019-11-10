@@ -5,6 +5,7 @@ analysis org.overture.codegen.vdm2systemc.extast.analysis;
 Tokens
     java_String = 'java:java.lang.String';
     java_Boolean = 'java:java.lang.Boolean';
+    java_Integer = 'java:java.lang.Integer';
     eString ='java:org.overture.ast.util.ClonableString';
 
 Abstract Syntax Tree
@@ -24,21 +25,32 @@ IR = #decl
        [methods]:IR.#decl.method*
        [CThreads]:thread
        [top]:java_Boolean
+       (interfaces):java_String*
     | {syscBusModule}
         [name]:java_String
-        [channels]:IR.#stm.remoteMethodCall*
+        [connectedElementCount]:java_Integer
+        [speed]:java_Integer
     ;
 
 #stm {-> package='org.overture.codegen.vdm2systemc.extast.statements'}
     = {remoteMethodCall}
         [type]:IR.#type
         [name]:java_String
-        [called]:java_String
+        [called]:IR.#stm.callObject
         [callee]:java_String
-        [args]:IR.#exp*
     | {sensitive}
         [input]:java_String
         [method]:java_String
+    | {handleInput}
+        [handlerType]:IR.#type
+        [handlerName]:java_String
+        [handlerField]:java_String
+        [paramType]:IR.#type
+        [returnType]:IR.#type
+    | {handleModuleInput}
+        [moduleName]:java_String
+        [hostName]:java_String
+        [inputs]:IR.#stm.handleInput*
     ;
 
 thread {-> package='org.overture.codegen.vdm2systemc.extast.declarations'}

@@ -1,2 +1,23 @@
+#set ($nameUpper = $node.getName().toUpperCase())
+#pragma once
 
-Bus header, should not be generated.
+struct $node.getName(): public sc_module
+{
+    SC_CTOR($node.getName())
+    {
+        for(int i = 0; i < ${nameUpper}_IDENTIFIER_COUNT; i++)
+        {
+            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+        }
+    }
+
+public:
+    tlm_utils::simple_target_socket_tagged<$node.getName()> inputs[${nameUpper}_IDENTIFIER_COUNT];
+    tlm_utils::simple_initiator_socket_tagged<$node.getName()> outputs[${nameUpper}_IDENTIFIER_COUNT];
+    void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+private:
+    sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
+    sc_mutex bus_mutex;
+    tlm::tlm_phase phase = tlm::BEGIN_REQ;
+    sc_time bus_speed = sc_time($node.getSpeed(), SC_NS);
+};

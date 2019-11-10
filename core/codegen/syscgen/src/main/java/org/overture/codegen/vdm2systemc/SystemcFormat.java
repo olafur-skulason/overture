@@ -1,6 +1,7 @@
 
 package org.overture.codegen.vdm2systemc;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.LinkedList;
 import java.io.StringWriter;
@@ -26,6 +27,7 @@ import org.overture.codegen.assistant.LocationAssistantIR;
 import org.overture.ast.intf.lex.ILexLocation;
 import org.overture.ast.util.ClonableString;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
+import org.overture.codegen.vdm2systemc.extast.statements.AHandleInputStmIR;
 
 public class SystemcFormat
 {
@@ -349,7 +351,9 @@ public class SystemcFormat
 	public String formatTemplateTypes(List<ATemplateTypeIR> templateTypes) throws AnalysisException
 	{
 		StringWriter writer = new StringWriter();
-		writer.append(format(templateTypes.get(0)));
+
+		if(templateTypes.size() > 0)
+			writer.append(format(templateTypes.get(0)));
 
 		for(int i = 1; i < templateTypes.size(); i++)
 		{
@@ -358,5 +362,32 @@ public class SystemcFormat
 		return writer.toString();
 	}
 
+	public String getInterfaces(ASyscModuleDeclIR module)
+	{
+		StringWriter writer = new StringWriter();
 
+		for(int i = 0; i < module.getInterfaces().size(); i++)
+		{
+			writer.append(", public ");
+			writer.append(module.getInterfaces().get(i));
+		}
+
+
+		return writer.toString();
+	}
+
+	public String getBusName(AMethodDeclIR method) {
+		String methodName = method.getName();
+		List<String> nameComponents = Arrays.asList(methodName.split("_"));
+		while(nameComponents.size() > 3) {
+			nameComponents.set(1, nameComponents.get(1) + "_" + nameComponents.get(2));
+			nameComponents.remove(2);
+		}
+
+		return nameComponents.get(1);
+	}
+
+	public String getHostModule(AHandleInputStmIR stm) {
+		return stm.getAncestor(ASyscModuleDeclIR.class).getName();
+	}
 }

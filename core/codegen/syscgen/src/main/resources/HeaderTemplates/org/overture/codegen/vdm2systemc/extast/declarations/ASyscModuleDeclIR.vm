@@ -3,8 +3,9 @@
 #foreach($dep in $node.getDependencies())
 #include $SystemcFormat.getString($dep)
 #end
+#set ($interfaces = $SystemcFormat.getInterfaces($node))
 #set ($name = $SystemcFormat.getName($node))
-SC_MODULE($name)
+struct $name: public sc_module$interfaces
 {
     SC_CTOR($name)
     {

@@ -23,6 +23,7 @@ public:
     $SystemcFormat.format($method)
 #end
 #end
+    virtual ~$node.getName()();
 ##
 protected:
 #foreach ( $class in $node.getInnerClasses() )

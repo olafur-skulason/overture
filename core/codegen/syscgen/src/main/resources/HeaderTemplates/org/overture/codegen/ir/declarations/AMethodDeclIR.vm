@@ -16,5 +16,11 @@ template<$SystemcFormat.formatTemplateTypes($node.getTemplateTypes())>
 #if (!$node.getIsConstructor())
 #set ( $returnType = $SystemcFormat.format($node.getMethodType().getResult()) + " ")
 #end
+#set ( $virtual = "" )
+#set ( $abstract = "" )
+#if( $node.getAbstract() )
+#set ( $abstract = ' = 0' )
+#set ( $virtual = 'virtual ' )
+#end
 ##
-$static$returnType$node.getName()(${params});
+$virtual$static$returnType$node.getName()(${params})$abstract;

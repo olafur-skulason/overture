@@ -25,7 +25,6 @@ public class SystemcCodeGen extends CodeGenBase
 {
 
 	private SystemcFormat implementationSystemcFormat, headerSystemcFormat;
-	private SystemcTransSeries transSeries;
 	private SClassDefinition mainClass;
 	private ArchitecturalAnalysis architecturalAnalysis;
 
@@ -34,8 +33,6 @@ public class SystemcCodeGen extends CodeGenBase
 	public SystemcSettings systemcSettings;
 	public IRSettings irSettings;
 
-	private List<String> modules;
-
 	public SystemcCodeGen()
 	{
 		super();
@@ -43,8 +40,7 @@ public class SystemcCodeGen extends CodeGenBase
 		this.headerSystemcFormat = new SystemcFormat(SystemcConstants.SYSTEMC_HEADER_TEMPLATE_ROOT_FOLDER, SystemcConstants.SYSTEMC_BASE_TEMPLATE_ROOT_FOLDER, generator.getIRInfo());
 		this.mainClass = null;
 		this.warnings = new LinkedList<>();
-		this.modules = new LinkedList<>();
-		this.architecturalAnalysis = new ArchitecturalAnalysis();
+		this.architecturalAnalysis = new ArchitecturalAnalysis(this.implementationSystemcFormat);
 		clearVdmAstData();
 	}
 
@@ -79,16 +75,19 @@ public class SystemcCodeGen extends CodeGenBase
 		}
 		architecturalAnalysis.FindRoot(canBeGenerated);
 
-		this.transSeries = new SystemcTransSeries(this, architecturalAnalysis.getRootName());
-		RunTransformations(canBeGenerated, this.transSeries.getPreArchitecturalSeries());
+		SystemcTransSeries transSeries = new SystemcTransSeries(this, architecturalAnalysis.getRootName());
+		RunTransformations(canBeGenerated, transSeries.getPreArchitecturalSeries());
 
-		architecturalAnalysis.AnalyseArchitecture(canBeGenerated);
+		try {
+			architecturalAnalysis.AnalyseArchitecture(canBeGenerated);
+		}
+		catch(org.overture.codegen.ir.analysis.AnalysisException e) {
+			warnings.add("Error in architectural analysis. " + e.getMessage());
+		}
 
-		RunTransformations(canBeGenerated, this.transSeries.getSeries());
+		RunTransformations(canBeGenerated, transSeries.getSeries());
 
-		ConvertBusToModule.convertBusModules(canBeGenerated);
-
-		//generateSyscModules(canBeGenerated);
+		//ConvertBusToModule.convertBusModules(canBeGenerated);
 
 		MergeVisitor implMergeVisitor = implementationSystemcFormat.getMergeVisitor();
 		MergeVisitor headerMergeVisitor = headerSystemcFormat.getMergeVisitor();
