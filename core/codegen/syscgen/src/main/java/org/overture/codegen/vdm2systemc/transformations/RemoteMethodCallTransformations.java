@@ -22,7 +22,7 @@ public class RemoteMethodCallTransformations extends DepthFirstAnalysisSystemCAd
 
     @Override
     public void caseACallObjectStmIR(ACallObjectStmIR node) throws AnalysisException {
-        ACallObjectStmIR call = (ACallObjectStmIR)node;
+        ACallObjectStmIR call = node;
         if(call.getDesignator() instanceof AIdentifierObjectDesignatorIR) {
             AIdentifierObjectDesignatorIR objectDesignator = (AIdentifierObjectDesignatorIR) call.getDesignator();
             if(objectDesignator.getExp() instanceof AExplicitVarExpIR) {

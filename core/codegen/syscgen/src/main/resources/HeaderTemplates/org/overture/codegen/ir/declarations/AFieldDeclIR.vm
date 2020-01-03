@@ -5,4 +5,4 @@
 ##
 ##$SystemcFormat.formatMetaData($node.getMetaData())
 ##
-$static$SystemcFormat.format($node.getType()) $node.getName() $SystemcFormat.formatInitialExp($node.getInitial());
+$static$SystemcFormat.format($node.getType()) $node.getName();

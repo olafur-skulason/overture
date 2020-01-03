@@ -78,7 +78,7 @@ public abstract class SystemcGenTestBase extends CheckerTestBase
 				Assert.fail("Problems encountered when trying to code generated VDM model");
 			}
 
-			codeGenerator.genSystemcSourceFiles(outputDir, data.getClasses());
+			codeGenerator.genSystemcSourceFiles(outputDir, data.getClasses(), ".test");
 		}
 		catch (AnalysisException e)
 		{

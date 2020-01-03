@@ -12,6 +12,7 @@ import org.apache.log4j.Logger;
 import org.overture.ast.expressions.AUndefinedExp;
 import org.overture.codegen.ir.name.ATypeNameIR;
 import org.overture.codegen.ir.statements.AForLoopStmIR;
+import org.overture.codegen.ir.statements.ANewObjectDesignatorIR;
 import org.overture.codegen.ir.statements.APlainCallStmIR;
 import org.overture.codegen.merging.MergeVisitor;
 import org.overture.codegen.merging.TemplateCallable;
@@ -26,6 +27,7 @@ import org.overture.codegen.ir.statements.ABlockStmIR;
 import org.overture.codegen.assistant.LocationAssistantIR;
 import org.overture.ast.intf.lex.ILexLocation;
 import org.overture.ast.util.ClonableString;
+import org.overture.codegen.vdm2systemc.extast.declarations.ASyscBusModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.statements.AHandleInputStmIR;
 
@@ -305,9 +307,35 @@ public class SystemcFormat
 		}
 	}
 
-	public String formatInitialExp(SExpIR exp) throws AnalysisException
+	public String formatNotEqualsBinaryExp(ANotEqualsBinaryExpIR node) throws AnalysisException
 	{
-		return exp == null || exp instanceof AUndefinedExp ? "" : " = " + format(exp);
+		STypeIR leftNodeType = node.getLeft().getType();
+
+		if(leftNodeType instanceof SSeqTypeIR
+				|| leftNodeType instanceof SSetTypeIR
+				|| leftNodeType instanceof SMapTypeIR)
+		{
+			return "";
+		}
+		else
+		{
+			return String.format("%s != %s", format(node.getLeft()), format(node.getRight()));
+		}
+	}
+
+	public String formatInitialExp(SExpIR exp, boolean initializerList) throws AnalysisException
+	{
+		if(initializerList) {
+			if(exp == null || exp instanceof AUndefinedExp || format(exp).equals("NULL"))
+				return "";
+			if(exp instanceof ANewExpIR) {
+				return formatArgs(((ANewExpIR) exp).getArgs());
+			}
+			return format(exp);
+		}
+		else {
+			return exp == null || exp instanceof AUndefinedExp || format(exp).equals("NULL") ? "" : " = " + format(exp);
+		}
 	}
 
 	public String formatIdentifierVar(AIdentifierVarExpIR var)
@@ -376,15 +404,14 @@ public class SystemcFormat
 		return writer.toString();
 	}
 
+	public String getBusIdCount(ASyscBusModuleDeclIR bus) {
+		return bus.getConnectedElementCount().toString();
+	}
+
 	public String getBusName(AMethodDeclIR method) {
 		String methodName = method.getName();
 		List<String> nameComponents = Arrays.asList(methodName.split("_"));
-		while(nameComponents.size() > 3) {
-			nameComponents.set(1, nameComponents.get(1) + "_" + nameComponents.get(2));
-			nameComponents.remove(2);
-		}
-
-		return nameComponents.get(1);
+		return String.join("_", nameComponents.subList(1, nameComponents.get(nameComponents.size()-1).equals("void") ? nameComponents.size()-1 : nameComponents.size()));
 	}
 
 	public String getHostModule(AHandleInputStmIR stm) {

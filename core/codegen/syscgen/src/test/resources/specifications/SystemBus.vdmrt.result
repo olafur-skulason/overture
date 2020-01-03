@@ -7,6 +7,7 @@ struct A: public sc_module
     }
 public:
     sc_in<bool> clk ;
+    int clk_frequency ;
     void T(int a);
 protected:
 private:
@@ -22,6 +23,7 @@ void A::T(int a){
 }
 
 
+
 ##########
 #pragma once
 
@@ -32,6 +34,7 @@ struct B: public sc_module
     }
 public:
     sc_in<bool> clk ;
+    int clk_frequency ;
     void R();
 protected:
 private:
@@ -46,6 +49,7 @@ void B::R(){
     os->a_T(1);
 
 }
+
 
 
 ##########
@@ -100,11 +104,13 @@ struct cpu_y: public sc_module, public i_host_B
     SC_CTOR(cpu_y)
     {
         b.clk(clk);
+        b.clk_frequency = clk_frequency;
         transfer_input.register_b_transport(this, &cpu_y::transfer_input_handler);
     }
 public:
     B b  = B("cpu_y.b");
     sc_clock clk  = sc_clock("cpu_y.clk", 100);
+    int clk_frequency  = 100;
     tlm_utils::simple_initiator_socket<cpu_y> transfer_output ;
     tlm_utils::simple_target_socket<cpu_y> transfer_input ;
     void a_T(int a);
@@ -184,6 +190,28 @@ void cpu_y::write_transfer_void(int destination, int method, params parameters)
 }
 
 
+
+##########
+#pragma once
+
+struct cpu_virtual: public sc_module
+{
+    SC_CTOR(cpu_virtual)
+    {
+    }
+public:
+    sc_clock clk  = sc_clock("cpu_virtual.clk", 1000000000000);
+    int clk_frequency  = 1000000000000;
+protected:
+private:
+}
+
+##########
+#include "cpu_virtual.h"
+
+
+
+
 ##########
 #pragma once
 
@@ -192,11 +220,13 @@ struct cpu_x: public sc_module, public i_host_A
     SC_CTOR(cpu_x)
     {
         a.clk(clk);
+        a.clk_frequency = clk_frequency;
         transfer_input.register_b_transport(this, &cpu_x::transfer_input_handler);
     }
 public:
     A a  = A("cpu_x.a");
     sc_clock clk  = sc_clock("cpu_x.clk", 100);
+    int clk_frequency  = 100;
     tlm_utils::simple_initiator_socket<cpu_x> transfer_output ;
     tlm_utils::simple_target_socket<cpu_x> transfer_input ;
     void transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
@@ -273,6 +303,7 @@ void cpu_x::write_transfer_void(int destination, int method, params parameters)
 }
 
 
+
 ##########
 #pragma once
 
@@ -318,6 +349,48 @@ sc_dt::uint64 transfer::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & m
 ##########
 #pragma once
 
+struct bus_virtual: public sc_module
+{
+    SC_CTOR(bus_virtual)
+    {
+        for(int i = 0; i < BUS_VIRTUAL_IDENTIFIER_COUNT; i++)
+        {
+            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+        }
+    }
+
+public:
+    tlm_utils::simple_target_socket_tagged<bus_virtual> inputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
+    tlm_utils::simple_initiator_socket_tagged<bus_virtual> outputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
+    void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+private:
+    sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
+    sc_mutex bus_mutex;
+    tlm::tlm_phase phase = tlm::BEGIN_REQ;
+    sc_time bus_speed = sc_time(1000000000000, SC_NS);
+};
+##########
+#include "bus_virtual.h"
+
+void bus_virtual::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+	sc_dt::uint64 address = payload.get_address();
+	sc_dt::uint64 masked_address;
+	sc_dt::uint64 target = resolve_address(address, masked_address);
+	bus_mutex.lock();
+	payload.set_address(masked_address);
+	outputs[target]->b_transport(payload, bus_speed);
+	channel_mutex.unlock();
+}
+
+sc_dt::uint64 bus_virtual::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+{
+	masked_address = 0x00000000FFFFFFFF & address;
+	return address >> 32;
+}
+##########
+#pragma once
+
 struct System: public sc_module
 {
     SC_CTOR(System)
@@ -326,6 +399,12 @@ struct System: public sc_module
         x.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::x]);
         y.transfer_outputs.bind(transfer.outputs[TRANSFER_IDENTIFIER::y]);
         y.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::y]);
+        cpu_y.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_y]);
+        cpu_y.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_y]);
+        cpu_virtual.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
+        cpu_virtual.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
+        cpu_x.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_x]);
+        cpu_x.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_x]);
     }
 public:
     cpu_x x  = cpu_x("System.x");
@@ -352,5 +431,6 @@ int main()
     sc_close_vcd_trace_file(tf);
     return 0;
 }
+
 
 ##########

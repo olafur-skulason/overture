@@ -8,7 +8,7 @@ public class A
 {
 public:
     A();
-
+    virtual ~A();
 protected:
 private:
 }
@@ -16,10 +16,11 @@ private:
 ##########
 #include "A.h"
 
-A::A()
-{
+
+A::A(){
 
 }
+
 
 ##########
 #pragma once
@@ -32,7 +33,7 @@ public class B
 {
 public:
     B();
-
+    virtual ~B();
 protected:
 private:
 }
@@ -40,9 +41,10 @@ private:
 ##########
 #include "B.h"
 
-B::B()
-{
+
+B::B(){
 /* skip */
 }
+
 
 ##########

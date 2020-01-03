@@ -584,7 +584,7 @@ public class GeneralCodeGenUtils
 							+ location.getStartPos() + "] in " + location.getFile()
 					: "");
 
-			String reason = nodeInfo.getReason();
+			String reason = nodeInfo.getNode().getClass().getName() + " - " + nodeInfo.getReason();
 
 			if (reason != null)
 			{

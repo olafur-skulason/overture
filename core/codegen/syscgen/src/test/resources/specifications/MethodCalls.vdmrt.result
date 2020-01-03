@@ -8,9 +8,8 @@ public class A
 {
 public:
     int one();
-
     A();
-
+    virtual ~A();
 protected:
 private:
 }
@@ -18,15 +17,17 @@ private:
 ##########
 #include "A.h"
 
-int A::one()
-{
+
+int A::one(){
 return 1;
 
 }
-A::A()
-{
+
+
+A::A(){
 
 }
+
 
 ##########
 #pragma once
@@ -39,11 +40,9 @@ public class Class
 {
 public:
     void Caller();
-
     void Called();
-
     Class();
-
+    virtual ~Class();
 protected:
 private:
     A a  = A();
@@ -52,19 +51,22 @@ private:
 ##########
 #include "Class.h"
 
-void Class::Caller()
-{
+
+void Class::Caller(){
     int v = a.one();
     Called();
 
 }
-void Class::Called()
-{
+
+
+void Class::Called(){
 /* skip */
 }
-Class::Class()
-{
+
+
+Class::Class(){
 
 }
+
 
 ##########

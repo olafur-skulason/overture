@@ -1,13 +1,14 @@
 #pragma once
 
-#foreach($dep in $node.getDependencies())
-\#include $SystemcFormat.getString($dep)
-#end
+\#include "includes.h"
+###foreach($dep in $node.getDependencies())
+##\#include $SystemcFormat.getString($dep)
+##end
 
 ## # if(!SystemcFormat.isNull($node.getThread()))
 ##	#set ( $activeObject = true )
 ## #end
-$node.getAccess() class $node.getName()
+class $node.getName()
 {
 public:
 #foreach ( $class in $node.getInnerClasses() )
@@ -54,5 +55,5 @@ private:
     $SystemcFormat.format($method)
 #end
 #end
-}
+};
 ##

@@ -56,6 +56,8 @@ public class SystemcTransSeries
 		AssignStmTrans assignTr = new AssignStmTrans(transAssist);
 		CPUInitializationTransformation cpuInitializationTransformation = new CPUInitializationTransformation();
 		BusInitializationTransformation busInitializationTransformation = new BusInitializationTransformation();
+		MutexImplementationTransformation mutexImplementationTransformation = new MutexImplementationTransformation();
+		DurationToCyclesTransformation durationToCyclesTransformation = new DurationToCyclesTransformation();
 
         // Set up order of transformations
 		series.add(dependenciesTransformation);
@@ -63,13 +65,16 @@ public class SystemcTransSeries
 		series.add(assignTr);
 		series.add(cpuInitializationTransformation);
 		series.add(busInitializationTransformation);
-
+		series.add(durationToCyclesTransformation);
 
 		// Construct pre analysis transformations
 		RemoteMethodCallTransformations remoteMethodCallTransformations = new RemoteMethodCallTransformations(rootName);
+		RemoveUnsupported removeUnsupported = new RemoveUnsupported();
 
 		// Set up pre analysis transformation order
 		preAnalysisSeries.add(remoteMethodCallTransformations);
+		preAnalysisSeries.add(mutexImplementationTransformation);
+		preAnalysisSeries.add(removeUnsupported);
 	}
 
 	public List<DepthFirstAnalysisAdaptor> getPreArchitecturalSeries() {

@@ -4,6 +4,7 @@ package org.overture.codegen.vdm2systemc;
 
 import org.overture.ast.analysis.AnalysisException;
 import org.overture.ast.definitions.SClassDefinition;
+import org.overture.ast.lex.Dialect;
 import org.overture.codegen.printer.MsgPrinter;
 import org.overture.codegen.ir.IRSettings;
 import org.overture.codegen.ir.CodeGenBase;
@@ -40,6 +41,8 @@ public class SystemcCodeGenMain
 		File outputDir = null;
 
 		List<File> files = new LinkedList<File>();
+
+		Settings.dialect = Dialect.VDM_RT;
 
 		for (Iterator<String> i = listArgs.iterator(); i.hasNext();)
 		{
@@ -124,9 +127,10 @@ public class SystemcCodeGenMain
 				return;
 			}
 
-			GeneratedData data = syscCg.generate(CodeGenBase.getNodes(tcResult.result));
+			syscCg.generate(CodeGenBase.getNodes(tcResult.result));
 
-			processData(outputDir, syscCg, data);
+			processData(outputDir, syscCg, syscCg.GetHeaders(), ".h");
+			processData(outputDir, syscCg, syscCg.GetSources(), ".cpp");
 		}
 		catch (AnalysisException e)
 		{
@@ -134,7 +138,7 @@ public class SystemcCodeGenMain
 		}
 	}
 
-	public static void processData(final File outputDir, SystemcCodeGen syscCg, GeneratedData data)
+	public static void processData(final File outputDir, SystemcCodeGen syscCg, GeneratedData data, String fileExtension)
 	{
 		List<GeneratedModule> generatedClasses = data.getClasses();
 		List<String> names = new ArrayList<>();
@@ -153,13 +157,15 @@ public class SystemcCodeGenMain
 				}
 				else if(!generatedClass.canBeGenerated())
 				{
-					MsgPrinter.getPrinter().println("Could not generate class: " + generatedClass.getName() + "\n");
+					MsgPrinter.getPrinter().println("Could not generate class: " + generatedClass.getName());
+
+					GeneralCodeGenUtils.printUnsupportedNodes(generatedClass.getUnsupportedInTargLang());
 				}
 				else
 				{
 					if(outputDir != null)
 					{
-						syscCg.genFile(outputDir, generatedClass);
+						syscCg.genFile(outputDir, generatedClass, fileExtension);
 					}
 
 					names.add(generatedClass.getName());

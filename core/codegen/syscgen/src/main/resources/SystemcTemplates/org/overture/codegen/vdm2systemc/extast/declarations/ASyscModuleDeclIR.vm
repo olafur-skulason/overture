@@ -65,7 +65,7 @@ $SystemcFormat.format($stm)
 #if ($node.getTop())
 int main()
 {
-    $SystemcFormat.getName($node) top = $SystemcFormat.getName($node)("$SystemcFormat.getName($node)";
+    $SystemcFormat.getName($node) top = $SystemcFormat.getName($node)("$SystemcFormat.getName($node)");
 
     sc_trace_file *tf;
     tf->sc_create_vcd_trace_file("WaveForm");
@@ -77,3 +77,20 @@ int main()
     return 0;
 }
 #end
+
+#if(!$SystemcFormat.isNull($node.getCThreads()))
+#set ($thread = $node.getCThreads())
+void $SystemcFormat.getName($node)::thread() {
+    wait($thread.getOffset() * clk_frequency * 1.0E-9f);
+    while(true) {
+        $thread.getMethod()();
+        wait(std::min($thread.getPeriod() + (2.0 * (double)$thread.getJitter() * (((double)std::rand() % 2.0) - 1.0)), $thread.getDelay()) * clk_frequency * 1.0E-9f);
+    }
+}
+#end
+
+void $node.getName()::split_address(sc_dt::uint64 address, int & module, int & method)
+{
+    method = 0x00000000FFFFFFFF & address;
+    module = address >> 32;
+}

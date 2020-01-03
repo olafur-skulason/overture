@@ -6,6 +6,7 @@ Tokens
     java_String = 'java:java.lang.String';
     java_Boolean = 'java:java.lang.Boolean';
     java_Integer = 'java:java.lang.Integer';
+    java_Long = 'java:java.lang.Long';
     eString ='java:org.overture.ast.util.ClonableString';
 
 Abstract Syntax Tree
@@ -28,8 +29,9 @@ IR = #decl
        (interfaces):java_String*
     | {syscBusModule}
         [name]:java_String
+        (connectedElements):java_String*
         [connectedElementCount]:java_Integer
-        [speed]:java_Integer
+        [speed]:java_Long
     ;
 
 #stm {-> package='org.overture.codegen.vdm2systemc.extast.statements'}

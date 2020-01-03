@@ -2,6 +2,8 @@ package org.overture.codegen.vdm2systemc;
 
 import org.eclipse.core.internal.utils.Convert;
 import org.overture.codegen.ir.*;
+import org.overture.codegen.ir.statements.ACyclesStmIR;
+import org.overture.codegen.ir.statements.ADurationStmIR;
 import org.overture.codegen.utils.GeneratedData;
 import org.overture.codegen.utils.GeneratedModule;
 import org.overture.ast.analysis.AnalysisException;
@@ -15,6 +17,7 @@ import org.overture.codegen.ir.analysis.DepthFirstAnalysisAdaptor;
 import org.overture.codegen.trans.ModuleToClassTransformation;
 import org.overture.codegen.trans.DivideTrans;
 import org.overture.codegen.merging.MergeVisitor;
+import org.overture.codegen.vdm2systemc.extast.declarations.ASyscBusModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
 import org.overture.codegen.vdm2systemc.transformations.RemoteMethodCallTransformations;
 
@@ -32,6 +35,18 @@ public class SystemcCodeGen extends CodeGenBase
 
 	public SystemcSettings systemcSettings;
 	public IRSettings irSettings;
+	private GeneratedData generatedHeaders;
+	private GeneratedData generatedSources;
+
+	public GeneratedData GetHeaders()
+	{
+		return generatedHeaders;
+	}
+
+	public GeneratedData GetSources()
+	{
+		return generatedSources;
+	}
 
 	public SystemcCodeGen()
 	{
@@ -41,6 +56,8 @@ public class SystemcCodeGen extends CodeGenBase
 		this.mainClass = null;
 		this.warnings = new LinkedList<>();
 		this.architecturalAnalysis = new ArchitecturalAnalysis(this.implementationSystemcFormat);
+		generatedHeaders = null;
+		generatedSources = null;
 		clearVdmAstData();
 	}
 
@@ -56,6 +73,8 @@ public class SystemcCodeGen extends CodeGenBase
 	protected GeneratedData genVdmToTargetLang(
 			List<IRStatus<PIR>> statuses) throws AnalysisException
 	{
+		List<GeneratedModule> genHeaders = new LinkedList<GeneratedModule>();
+		List<GeneratedModule> genSources = new LinkedList<GeneratedModule>();
 		List<GeneratedModule> genModules = new LinkedList<GeneratedModule>();
 
 		statuses = initialIrEvent(statuses);
@@ -86,8 +105,6 @@ public class SystemcCodeGen extends CodeGenBase
 		}
 
 		RunTransformations(canBeGenerated, transSeries.getSeries());
-
-		//ConvertBusToModule.convertBusModules(canBeGenerated);
 
 		MergeVisitor implMergeVisitor = implementationSystemcFormat.getMergeVisitor();
 		MergeVisitor headerMergeVisitor = headerSystemcFormat.getMergeVisitor();
@@ -121,6 +138,8 @@ public class SystemcCodeGen extends CodeGenBase
 			{
 				if(shouldGenerateVdmNode(vdmClass))
 				{
+					genHeaders.add(genIrModule(headerMergeVisitor, status));
+					genSources.add(genIrModule(implMergeVisitor, status));
 					genModules.add(genIrModule(headerMergeVisitor, status));
 					genModules.add(genIrModule(implMergeVisitor, status));
 				}
@@ -138,6 +157,16 @@ public class SystemcCodeGen extends CodeGenBase
 		data.setClasses(genModules);
 		data.setQuoteValues(generateFromVdmQuotes());
 		data.setWarnings(warnings);
+
+		generatedHeaders = new GeneratedData();
+		generatedHeaders.setClasses(genHeaders);
+		generatedHeaders.setQuoteValues(generateFromVdmQuotes());
+		generatedHeaders.setWarnings(warnings);
+
+		generatedSources = new GeneratedData();
+		generatedSources.setClasses(genSources);
+		generatedSources.setQuoteValues(generateFromVdmQuotes());
+		generatedSources.setWarnings(warnings);
 
 		return data;
 	}
@@ -176,21 +205,20 @@ public class SystemcCodeGen extends CodeGenBase
 		return null;
 	}
 
-	public void genSystemcSourceFiles(File root, List<GeneratedModule> generatedClasses)
+	public void genSystemcSourceFiles(File root, List<GeneratedModule> generatedClasses, String fileExtension)
 	{
 		for(GeneratedModule classCg : generatedClasses)
 		{
 			if(classCg.canBeGenerated())
 			{
-				genFile(new File(root, SystemcConstants.CPP_FILE_FOLDER), classCg);
+				genFile(new File(root, SystemcConstants.CPP_FILE_FOLDER), classCg, fileExtension);
 			}
 		}
 	}
 
-	public void genFile(File root, GeneratedModule generatedModule)
+	public void genFile(File root, GeneratedModule generatedModule, String fileExtension)
 	{
 		File moduleOutputDir = root;
-		String fileExtension = ".h";
 
 		if(moduleOutputDir == null)
 		{

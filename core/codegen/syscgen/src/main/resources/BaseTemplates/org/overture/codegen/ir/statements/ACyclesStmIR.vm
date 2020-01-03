@@ -1,0 +1,2 @@
+$SystemcFormat.format($node.getStm())
+wait($SystemcFormat.format($node.getCycles()));

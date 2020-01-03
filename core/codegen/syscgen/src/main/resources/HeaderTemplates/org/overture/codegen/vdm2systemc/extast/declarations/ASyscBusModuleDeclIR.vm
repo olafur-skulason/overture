@@ -1,5 +1,13 @@
 #set ($nameUpper = $node.getName().toUpperCase())
 #pragma once
+\#include "includes.h"
+
+typedef enum ${node.getName()}_identifier {
+#foreach($conn in $node.getConnectedElements())
+    $conn,
+#end
+    ${nameUpper}_IDENTIFIER_COUNT
+} ${nameUpper}_IDENTIFIER;
 
 struct $node.getName(): public sc_module
 {
@@ -7,7 +15,7 @@ struct $node.getName(): public sc_module
     {
         for(int i = 0; i < ${nameUpper}_IDENTIFIER_COUNT; i++)
         {
-            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+            inputs[i].register_b_transport(this, &$node.getName()::b_transfer, i);
         }
     }
 

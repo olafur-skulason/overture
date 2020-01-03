@@ -7,9 +7,8 @@ public class A
 {
 public:
     int op();
-
     A();
-
+    virtual ~A();
 protected:
 private:
 }
@@ -17,8 +16,8 @@ private:
 ##########
 #include "A.h"
 
-int A::op()
-{
+
+int A::op(){
     int n = 1;
     bool b = true;
     double r = 1.0f;
@@ -29,9 +28,11 @@ int A::op()
 
 
 }
-A::A()
-{
+
+
+A::A(){
 
 }
+
 
 ##########

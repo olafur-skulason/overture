@@ -1,8 +1,8 @@
 #pragma once
 
-struct Active: public sc_module
+struct Counter: public sc_module
 {
-    SC_CTOR(Active)
+    SC_CTOR(Counter)
     {
         SC_CTHREAD(thread)
         sensitive << clk;
@@ -11,27 +11,32 @@ public:
     int counter  = 0;
     sc_in<bool> clk ;
     int clk_frequency ;
-    void T();
+    void increment();
     void thread();
 protected:
 private:
-    i_host_Active * os ;
+    sc_mutex mutex ;
+    i_host_Counter * os ;
 }
 
 ##########
-#include "Active.h"
+#include "Counter.h"
 
 
-void Active::T(){
-/* skip */
+void Counter::increment(){
+    mutex.lock();
+    counter = counter + 1;
+wait(10 * clk_frequency * 1.0E-9f);
+    mutex.unlock();
+
 }
 
 
-void Active::thread() {
-    wait(100 * clk_frequency * 1.0E-9f);
+void Counter::thread() {
+    wait(0 * clk_frequency * 1.0E-9f);
     while(true) {
-        T();
-        wait(std::min(100 + (2.0 * (double)100 * (((double)std::rand() % 2.0) - 1.0)), 100) * clk_frequency * 1.0E-9f);
+        increment();
+        wait(std::min(100 + (2.0 * (double)150 * (((double)std::rand() % 2.0) - 1.0)), 10) * clk_frequency * 1.0E-9f);
     }
 }
 
@@ -40,33 +45,54 @@ void Active::thread() {
 
 #include <list>
 #include <systemc>
-#include "System.h"
-#include "Active.h"
+#include "Periodic.h"
+#include "Counter.h"
 
-public class i_host_Active
+public class i_host_Counter
 {
 public:
-    virtual ~i_host_Active();
+    virtual ~i_host_Counter();
 protected:
 private:
 }
 
 ##########
-#include "i_host_Active.h"
+#include "i_host_Counter.h"
 
 
 ##########
 #pragma once
 
-struct cpu_virtual: public sc_module, public i_host_Active
+struct cpu_processor: public sc_module, public i_host_Counter
+{
+    SC_CTOR(cpu_processor)
+    {
+        counter.clk(clk);
+        counter.clk_frequency = clk_frequency;
+    }
+public:
+    Counter counter  = Counter("cpu_processor.counter");
+    sc_clock clk  = sc_clock("cpu_processor.clk", 100000);
+    int clk_frequency  = 100000;
+protected:
+private:
+}
+
+##########
+#include "cpu_processor.h"
+
+
+
+
+##########
+#pragma once
+
+struct cpu_virtual: public sc_module
 {
     SC_CTOR(cpu_virtual)
     {
-        a.clk(clk);
-        a.clk_frequency = clk_frequency;
     }
 public:
-    Active a  = Active("cpu_virtual.a");
     sc_clock clk  = sc_clock("cpu_virtual.clk", 1000000000000);
     int clk_frequency  = 1000000000000;
 protected:
@@ -124,25 +150,28 @@ sc_dt::uint64 bus_virtual::resolve_address(sc_dt::uint64 address, sc_dt::uint64 
 ##########
 #pragma once
 
-struct System: public sc_module
+struct Periodic: public sc_module
 {
-    SC_CTOR(System)
+    SC_CTOR(Periodic)
     {
+        cpu_processor.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_processor]);
+        cpu_processor.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_processor]);
         cpu_virtual.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
         cpu_virtual.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
     }
 public:
+    cpu_processor processor  = cpu_processor("Periodic.processor");
 protected:
 private:
 }
 
 ##########
-#include "System.h"
+#include "Periodic.h"
 
 
 int main()
 {
-    System top = System("System";
+    Periodic top = Periodic("Periodic";
 
     sc_trace_file *tf;
     tf->sc_create_vcd_trace_file("WaveForm");

@@ -1,13 +1,22 @@
 #pragma once
+\#include "includes.h"
 
 #foreach($dep in $node.getDependencies())
 #include $SystemcFormat.getString($dep)
+#end
+#foreach($method in $node.getMethods())
+#if($method.getAccess == "public")
+$name_$SystemcFormat.format($method.getName()),
+#end
 #end
 #set ($interfaces = $SystemcFormat.getInterfaces($node))
 #set ($name = $SystemcFormat.getName($node))
 struct $name: public sc_module$interfaces
 {
-    SC_CTOR($name)
+    SC_CTOR($name) :
+#foreach($field in $node.getFields())
+    $field.getName()($SystemcFormat.formatInitialExp($field.getInitial(),true)),
+#end
     {
 #foreach($method in $node.getMethods())
 #if($method.getIsConstructor())
@@ -18,7 +27,7 @@ struct $name: public sc_module$interfaces
 #end
 #set ($cthread = $node.getCThreads())
 #if(!$SystemcFormat.isNull($cthread))
-        SC_CTHREAD($cthread.getMethod())
+        SC_CTHREAD(thread)
         sensitive << clk;
 #end
     }
@@ -35,6 +44,9 @@ public:
 #if( $method.getAccess() == "public" && !$method.getIsConstructor())
     $SystemcFormat.format($method)
 #end
+#end
+#if(!$SystemcFormat.isNull($cthread))
+    void thread();
 #end
 ##
 protected:
@@ -65,6 +77,7 @@ private:
 #if( $method.getAccess() == "private" && !$method.getIsConstructor())
     $SystemcFormat.format($method)
 #end
+    void split_address(sc_dt::uint64 address, int & module, int & method);
 #end
-}
+};
 ##

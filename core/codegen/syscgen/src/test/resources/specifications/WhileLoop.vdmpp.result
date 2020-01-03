@@ -7,9 +7,8 @@ public class A
 {
 public:
     void Act();
-
     A();
-
+    virtual ~A();
 protected:
 private:
 }
@@ -17,8 +16,8 @@ private:
 ##########
 #include "A.h"
 
-void A::Act()
-{
+
+void A::Act(){
     int n = 0;
     while(n < 5)
 {
@@ -27,9 +26,11 @@ void A::Act()
 
 
 }
-A::A()
-{
+
+
+A::A(){
 
 }
+
 
 ##########

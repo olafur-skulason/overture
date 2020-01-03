@@ -1,0 +1,37 @@
+system Periodic
+
+instance variables
+
+public processor : CPU := new CPU(<FP>, 1e5);
+
+public counter : Counter := new Counter();
+
+operations
+
+public Periodic: () ==> Periodic
+Periodic() == (
+    processor.deploy(counter);
+);
+
+end Periodic
+
+class Counter
+
+instance variables
+
+public counter : nat1 := 0;
+
+operations
+
+public increment: () ==> ()
+increment() == (
+    duration(10) counter := counter + 1;
+);
+
+sync
+mutex(increment);
+
+thread
+periodic(100, 150, 10, 0) (increment);
+
+end Counter

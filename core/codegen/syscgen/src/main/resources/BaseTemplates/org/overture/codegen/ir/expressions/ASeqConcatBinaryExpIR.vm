@@ -1,0 +1,1 @@
+#Systemc.format($node.getLeft(), true).splice(#Systemc.format($node.getLeft(), true).end(), $Systemc.format($node.getRight(), false))

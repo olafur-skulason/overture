@@ -7,6 +7,7 @@ import org.overture.codegen.ir.name.ATypeNameIR;
 import org.overture.codegen.ir.statements.ABlockStmIR;
 import org.overture.codegen.ir.statements.APeriodicStmIR;
 import org.overture.codegen.ir.types.AClassTypeIR;
+import org.overture.codegen.ir.types.AIntNumericBasicTypeIR;
 import org.overture.codegen.ir.types.ATemplateTypeIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscBusModuleDeclIR;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscModuleDeclIR;
@@ -43,7 +44,7 @@ public class SyscModuleGenerator {
         List<AFieldDeclIR> fields = new LinkedList<>();
         for (AFieldDeclIR field : clazz.getFields()) {
             if(field.getType() instanceof AClassTypeIR) {
-                if(knownModules.keySet().contains(((AClassTypeIR) field.getType()).getName())) // If is Module
+                if(knownModules.containsKey(((AClassTypeIR) field.getType()).getName())) // If is Module
                 {
                     ANewExpIR initial = new ANewExpIR();
                     ATypeNameIR initialType = new ATypeNameIR();
@@ -68,13 +69,21 @@ public class SyscModuleGenerator {
             clk.setType(clkType);
             clk.setAccess("public");
             fields.add(clk);
+
+            AFieldDeclIR clkFreq = new AFieldDeclIR();
+            clkFreq.setName("clk_frequency");
+            clkFreq.setVolatile(false);
+            clkFreq.setFinal(false);
+            clkFreq.setType(new AIntNumericBasicTypeIR());
+            clkFreq.setAccess("public");
+            fields.add(clkFreq);
         }
 
         module.setFields(fields);
 
         if (clazz.getThread() != null) {
-            AThreadThread thread = new AThreadThread();
             AThreadDeclIR originalThread = clazz.getThread();
+            AThreadThread thread = new AThreadThread();
 
             if (originalThread.getStm() instanceof APeriodicStmIR) {
                 thread.setMethod(((APeriodicStmIR) originalThread.getStm()).getOpname());
@@ -123,7 +132,7 @@ public class SyscModuleGenerator {
         return new LinkedList<>();
     }
 
-    public AFieldDeclIR generateClock(String parent, int interval) {
+    public AFieldDeclIR generateClock(String parent, Double interval) {
         AClassTypeIR clk_type = new AClassTypeIR();
         clk_type.setName("sc_clock");
 
@@ -134,7 +143,7 @@ public class SyscModuleGenerator {
         AStringLiteralExpIR name = new AStringLiteralExpIR();
         name.setValue(parent + ".clk");
         AIntLiteralExpIR interval_ = new AIntLiteralExpIR();
-        interval_.setValue((long) interval);
+        interval_.setValue(new Double(interval).longValue());
         initial.setArgs(Arrays.asList(name, interval_));
 
         AFieldDeclIR clk = new AFieldDeclIR();
@@ -147,12 +156,29 @@ public class SyscModuleGenerator {
         return clk;
     }
 
-    public ASyscBusModuleDeclIR generateBus(String bus, int connectedElementCount, Long speed) {
+
+    public AFieldDeclIR generateClockFrequency(Double frequency) {
+        AIntNumericBasicTypeIR clkType = new AIntNumericBasicTypeIR();
+
+        AIntLiteralExpIR initial = new AIntLiteralExpIR();
+        initial.setValue(new Double(frequency).longValue());
+
+        AFieldDeclIR clk = new AFieldDeclIR();
+        clk.setAccess("public");
+        clk.setName("clk_frequency");
+        clk.setType(clkType.clone());
+        clk.setInitial(initial);
+        clk.setVolatile(false);
+
+        return clk;
+    }
+
+    public ASyscBusModuleDeclIR generateBus(String bus, List<String> connectedElements, Long speed) {
         ASyscBusModuleDeclIR busModule = new ASyscBusModuleDeclIR();
         busModule.setName(bus);
-        busModule.setConnectedElementCount(connectedElementCount);
-        busModule.setSpeed(Math.toIntExact(speed));
-
+        busModule.setConnectedElementCount(connectedElements.size());
+        busModule.setConnectedElements(connectedElements);
+        busModule.setSpeed(speed);
         return busModule;
     }
 }

@@ -8,10 +8,7 @@ import org.overture.codegen.ir.declarations.*;
 import org.overture.codegen.ir.expressions.*;
 import org.overture.codegen.ir.name.ATypeNameIR;
 import org.overture.codegen.ir.patterns.AIdentifierPatternIR;
-import org.overture.codegen.ir.statements.ABlockStmIR;
-import org.overture.codegen.ir.statements.ACallObjectStmIR;
-import org.overture.codegen.ir.statements.AIdentifierObjectDesignatorIR;
-import org.overture.codegen.ir.statements.APlainCallStmIR;
+import org.overture.codegen.ir.statements.*;
 import org.overture.codegen.ir.types.*;
 import org.overture.codegen.runtime.traces.Pair;
 import org.overture.codegen.vdm2systemc.extast.declarations.ASyscBusModuleDeclIR;
@@ -21,12 +18,13 @@ import org.overture.codegen.vdm2systemc.extast.statements.AHandleModuleInputStmI
 import org.overture.codegen.vdm2systemc.extast.statements.ARemoteMethodCallStmIR;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class ArchitecturalAnalysis {
     private LinkedList<AFieldDeclIR> systemDeployedObjectDeclarations;
     private LinkedList<ASyscModuleDeclIR> systemDeployedObjects;
-    private HashMap<String, Set<String>> processingElements;
+    private HashMap<String, Pair<Set<String>, Double>> processingElements;
     private HashMap<String, ASyscModuleDeclIR> systemcModules;
     private ASystemClassDeclIR root;
     private HashMap<String, Pair<List<AIdentifierVarExpIR>, Long>> connectionElements;
@@ -73,6 +71,10 @@ public class ArchitecturalAnalysis {
     public void AnalyseArchitecture(List<IRStatus<PIR>> statuses) throws AnalysisException, org.overture.codegen.ir.analysis.AnalysisException {
         if(root != null){
             systemcModules.put(root.getName(), null);
+
+            processingElements.put("cpu_virtual_cpu", new Pair<>(new HashSet<>(), 1e12));
+            systemcModules.put("cpu_virtual_cpu", null);
+
             for(AFieldDeclIR field : root.getFields()) // For each field in system
             {
                 if(field.getType() instanceof AClassTypeIR) // If object
@@ -82,7 +84,14 @@ public class ArchitecturalAnalysis {
                     if(type.getName().equals("CPU"))
                     {
                         type.setName("cpu_" + field.getName());
-                        processingElements.put(type.getName(), new HashSet<>());
+                        double frequency = 0;
+                        if(((ANewExpIR) field.getInitial()).getArgs().get(1) instanceof ARealLiteralExpIR) {
+                            frequency = ((ARealLiteralExpIR) ((ANewExpIR) field.getInitial()).getArgs().get(1)).getValue();
+                        }
+                        else if (((ANewExpIR) field.getInitial()).getArgs().get(1) instanceof AIntLiteralExpIR) {
+                            frequency = ((AIntLiteralExpIR) ((ANewExpIR) field.getInitial()).getArgs().get(1)).getValue();
+                        }
+                        processingElements.put(type.getName(), new Pair<>(new HashSet<>(), frequency));
                         systemcModules.put("cpu_" + field.getName(), null);
                         field.parent().replaceChild(field, generateModuleField(field, "cpu_"));
                     }
@@ -97,7 +106,12 @@ public class ArchitecturalAnalysis {
                             member.setType(cpuType);
                             connectedCPUS.add((AIdentifierVarExpIR) member);
                         }
-                        connectionElements.put(field.getName(), new Pair<>(connectedCPUS, ((AIntLiteralExpIR) initial.getArgs().get(1)).getValue()));
+                        if(initial.getArgs().get(1) instanceof AIntLiteralExpIR) {
+                            connectionElements.put("bus_" + field.getName(), new Pair<>(connectedCPUS, ((AIntLiteralExpIR) initial.getArgs().get(1)).getValue()));
+                        }
+                        else if(initial.getArgs().get(1) instanceof ARealLiteralExpIR) {
+                            connectionElements.put("bus_" + field.getName(), new Pair<>(connectedCPUS, ((ARealLiteralExpIR) initial.getArgs().get(1)).getValue().longValue()));
+                        }
                         type.setName("bus_" + field.getName());
                         systemcModules.put(type.getName(), null);
                         field.parent().replaceChild(field, generateModuleField(field, "bus_"));
@@ -110,6 +124,30 @@ public class ArchitecturalAnalysis {
                     }
                 }
             }
+
+            List<AIdentifierVarExpIR> cpuIdentifiers = new LinkedList<>();
+            for(String cpu : processingElements.keySet())
+            {
+                AIdentifierVarExpIR id = new AIdentifierVarExpIR();
+                AClassTypeIR type = new AClassTypeIR();
+                type.setName(cpu.substring(4));
+                id.setName(cpu);
+                id.setType(type);
+                cpuIdentifiers.add(id);
+            }
+
+            List<AIdentifierVarExpIR> virtual_bus_identifiers = new LinkedList<>();
+            for(AIdentifierVarExpIR cpu : cpuIdentifiers) {
+                AIdentifierVarExpIR c = new AIdentifierVarExpIR();
+                AClassTypeIR c_type = new AClassTypeIR();
+                c_type.setName(cpu.getName());
+                c.setType(c_type);
+                c.setName(((AClassTypeIR)cpu.getType()).getName());
+                virtual_bus_identifiers.add(c);
+            }
+            connectionElements.put("bus_virtual", new Pair<>(virtual_bus_identifiers, (long)1e12));
+
+            List<String> unDeployedActiveObjects = activeObjects.stream().map(Pair::getSecond).collect(Collectors.toCollection(LinkedList::new));
 
             for(AMethodDeclIR method: root.getMethods())
             {
@@ -125,18 +163,29 @@ public class ArchitecturalAnalysis {
                             {
                                 ACallObjectStmIR callObjectStm = (ACallObjectStmIR) stm;
                                 if(callObjectStm.getFieldName().equals("deploy")) {
-                                    Set<String> depSet = processingElements.get("cpu_" + (callObjectStm.getDesignator().toString()));
+                                    Pair<Set<String>, Double> depSet = processingElements.get("cpu_" + (callObjectStm.getDesignator().toString()));
                                     SExpIR expIR = callObjectStm.getArgs().getFirst();
+                                    String name;
                                     if(expIR instanceof AExplicitVarExpIR) {
-                                        depSet.add(((AExplicitVarExpIR) expIR).getName());
+                                        name = ((AExplicitVarExpIR) expIR).getName();
                                     }
+                                    else if(expIR instanceof AIdentifierVarExpIR) {
+                                        name = ((AIdentifierVarExpIR) expIR).getName();
+                                    }
+                                    else {
+                                        throw new org.overture.codegen.ir.analysis.AnalysisException("Deployment operation with invalid parameters");
+                                    }
+                                    depSet.getFirst().add(name);
                                     processingElements.put("cpu_" + (callObjectStm.getDesignator().toString()), depSet);
+                                    unDeployedActiveObjects.removeIf(stringStringPair -> stringStringPair.equals(name));
                                 }
                             }
                         }
                     }
                 }
             }
+
+            processingElements.put("cpu_virtual", new Pair<>(new HashSet<>(unDeployedActiveObjects), (double)1e12));
 
             generateDeployedModules(statuses);
             generateInterfaces(statuses);
@@ -172,52 +221,8 @@ public class ArchitecturalAnalysis {
         SyscModuleGenerator generator = new SyscModuleGenerator();
         for(String bus: connectionElements.keySet())
         {
-            ASyscBusModuleDeclIR busModule = generator.generateBus(bus, connectionElements.get(bus).getFirst().size(), connectionElements.get(bus).getSecond());
+            ASyscBusModuleDeclIR busModule = generator.generateBus(bus, connectionElements.get(bus).getFirst().stream().map( identifier -> identifier.getName()).collect(Collectors.toList()), connectionElements.get(bus).getSecond());
             statuses.add(new IRStatus<>(null, bus, busModule, new HashSet<>()));
-
-            /*
-            Pair<List<AIdentifierVarExpIR>, Long> exp = connectionElements.get(bus);
-            List<AIdentifierVarExpIR> _elems = exp.getFirst();
-            List<ARemoteMethodCallStmIR> remoteMethodCalls = new LinkedList<>();
-
-            for(AIdentifierVarExpIR from: _elems)
-            {
-                for(AIdentifierVarExpIR to: _elems)
-                {
-                    if (from != to)
-                    {
-                        AIdentifierVarExpIR fromType = from;
-                        AIdentifierVarExpIR toType = to;
-                        Set<String> outObjects = processingElements.get("cpu_" + fromType.getName());
-                        Set<String> inObjects = processingElements.get("cpu_" + toType.getName());
-
-                        for(String outObj: outObjects)
-                        {
-                            String outModuleName = this.activeObjects.stream().filter( x -> x.getSecond().equals(outObj)).findFirst().get().getFirst();
-                            ASyscModuleDeclIR outModule = this.systemDeployedObjects.stream().filter( x -> x.getName().equals(outModuleName)).findFirst().get();
-
-                            for(String inObj: inObjects)
-                            {
-                                String inModuleName = this.activeObjects.stream().filter( x -> x.getSecond().equals(inObj)).findFirst().get().getFirst();
-                                ASyscModuleDeclIR inModule = this.systemDeployedObjects.stream().filter( x -> x.getName().equals(inModuleName)).findFirst().get();
-
-                                for(SStmIR m: outModule.getOutgoingMsg())
-                                {
-                                    ARemoteMethodCallStmIR msg = (ARemoteMethodCallStmIR) m;
-                                    if(msg.getCalled().equals(inModule.getName()))
-                                    {
-                                        remoteMethodCalls.add(msg);
-                                        inModule.getIncomingMsg().add(msg);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            ASyscBusModuleDeclIR busModule = generator.generateBus(bus, remoteMethodCalls, statuses);
-            statuses.add(new IRStatus<PIR>(null, bus, busModule, new HashSet<VdmNodeInfo>()));*/
         }
     }
 
@@ -336,7 +341,9 @@ public class ArchitecturalAnalysis {
         SyscModuleGenerator generator = new SyscModuleGenerator();
         for(String cpu_name : processingElements.keySet())
         {
-            Set<String> deployedModules = processingElements.get(cpu_name);
+            Pair<Set<String>, Double> cpu = processingElements.get(cpu_name);
+            Set<String> deployedModules = cpu.getFirst();
+            Double speed = cpu.getSecond();
 
             ADefaultClassDeclIR clazz = new ADefaultClassDeclIR();
             clazz.setName(cpu_name);
@@ -374,6 +381,7 @@ public class ArchitecturalAnalysis {
                         remoteCallInterface.setName(((ARemoteMethodCallStmIR) stm).getCalled().getDesignator() + "_" + ((ARemoteMethodCallStmIR) stm).getCalled().getFieldName());
                         remoteCallInterface.setAccess(access);
                         remoteCallInterface.setMethodType(original.getMethodType().clone());
+                        //noinspection unchecked
                         List<AFormalParamLocalParamIR> remoteParams = (List<AFormalParamLocalParamIR>) original.getFormalParams().clone();
                         remoteCallInterface.setFormalParams(remoteParams);
 
@@ -388,9 +396,9 @@ public class ArchitecturalAnalysis {
                             callVoidInterface.setName("write_" + busName + "_void");
                             callVoidInterface.setType(new AVoidTypeIR());
 
-                            AIdentifierVarExpIR objectIdentifier = generateVarIdentifier(String.format("%s_ids::%s", busName,  ((ARemoteMethodCallStmIR) stm).getCalled().getDesignator().toString()));
+                            AIdentifierVarExpIR objectIdentifier = generateVarIdentifier(String.format("%s_IDENTIFIER::%s", busName.toUpperCase(),  ((ARemoteMethodCallStmIR) stm).getCalled().getDesignator().toString()));
 
-                            AIdentifierVarExpIR methodIdentifier = generateVarIdentifier(String.format("exposed_methods_%s::%s", hostType , ((ARemoteMethodCallStmIR) stm).getCalled().getFieldName()));
+                            AIdentifierVarExpIR methodIdentifier = generateVarIdentifier(String.format("EXPOSED_METHODS_%s::%s", hostType , ((ARemoteMethodCallStmIR) stm).getCalled().getFieldName()));
 
                             if(remoteParams.size() == 0) {
                                 callVoidInterface.setName(callVoidInterface.getName() + "<char>");
@@ -424,9 +432,18 @@ public class ArchitecturalAnalysis {
                 assignClk.setName("clk");
                 AIdentifierVarExpIR clkIdentifier = generateVarIdentifier("clk");
                 assignClk.getArgs().add(clkIdentifier);
-                ctorBody.getStatements().add(assignClk);
+
+                AAssignToExpStmIR assignClkFreq = new AAssignToExpStmIR();
+                AIdentifierVarExpIR fieldNameFreq = new AIdentifierVarExpIR();
+                fieldNameFreq.setName(fieldName + ".clk_frequency");
+                assignClkFreq.setTarget(fieldNameFreq);
+                AIdentifierVarExpIR clkFreqIdentifier = new AIdentifierVarExpIR();
+                clkFreqIdentifier.setName("clk_frequency");
+                assignClkFreq.setExp(clkFreqIdentifier);
+                ctorBody.getStatements().addAll(Arrays.asList(assignClk, assignClkFreq));
             }
-            fields.add(generator.generateClock(clazz.getName(), 100));
+            fields.add(generator.generateClock(clazz.getName(), speed)); // TODO: Read cpu frequency
+            fields.add(generator.generateClockFrequency(speed));
 
             for(String channelName : connectionElements.keySet()) { // For all connection elements
                 if(connectionElements.get(channelName).getFirst().stream().filter( x -> x.getType().toString().equals(clazz.getName())).count() > 0) { // If clazz connected to channelName
@@ -459,10 +476,10 @@ public class ArchitecturalAnalysis {
                     // TODO: Add handleinput statements to blockingTransportHandlerBody
                     ABlockStmIR blockingTransportHandlerBody = new ABlockStmIR();
 
-                    for(AIdentifierVarExpIR cpu: connectionElements.get(channelName).getFirst().stream().filter( x -> ! x.getType().toString().equals(clazz.getName())).collect(Collectors.toList())) {
-                        // cpu is not clazz.
-                        for(String deployedModuleName : processingElements.get(cpu.getType().toString())) {
-                            // deployedModule is a module deployed to cpu.
+                    for(AIdentifierVarExpIR connectedCpu: connectionElements.get(channelName).getFirst().stream().filter( x -> ! x.getType().toString().equals(clazz.getName())).collect(Collectors.toList())) {
+                        // connectedCpu is not clazz.
+                        for(String deployedModuleName : processingElements.get(connectedCpu.getType().toString()).getFirst()) {
+                            // deployedModule is a module deployed to connectedCpu.
                             ASyscModuleDeclIR deployedModule = systemcModules.get(activeObjects.stream().filter( x -> x.getSecond().equals(deployedModuleName)).findFirst().get().getFirst());
                             AHandleModuleInputStmIR handleModuleInput = new AHandleModuleInputStmIR();
                             handleModuleInput.setModuleName(deployedModuleName);
@@ -567,8 +584,8 @@ public class ArchitecturalAnalysis {
 
     private String determineHostingCpuName(String designator) throws org.overture.codegen.ir.analysis.AnalysisException {
         for(String cpuName : processingElements.keySet()) {
-            Set<String> deployedModules = processingElements.get(cpuName);
-            if(deployedModules.contains(designator))
+            Pair<Set<String>, Double> deployedModules = processingElements.get(cpuName);
+            if(deployedModules != null && deployedModules.getFirst().contains(designator))
                 return cpuName;
         }
         throw new org.overture.codegen.ir.analysis.AnalysisException("Could not determine host of " + designator);
@@ -630,13 +647,15 @@ public class ArchitecturalAnalysis {
             body.getStatements().removeIf(stm -> stm instanceof ACallObjectStmIR && ((ACallObjectStmIR) stm).getFieldName().equals("deploy"));
 
             for(String busName : connectionElements.keySet()) {
-                AIdentifierVarExpIR busIdentifier = generateVarIdentifier(busName);
-                for(AIdentifierVarExpIR connected : connectionElements.get(busName).getFirst())
-                {
-                    ACallObjectStmIR output = createBindStm(busName, busIdentifier, connected, "outputs");
-                    body.getStatements().add(output);
-                    ACallObjectStmIR input = createBindStm(busName, busIdentifier, connected, "inputs");
-                    body.getStatements().add(input);
+                Optional<AFieldDeclIR> busField = module.getFields().stream().filter( field -> field.getType() instanceof AClassTypeIR ? ((AClassTypeIR) field.getType()).getName().equals(busName) : false).findFirst();
+                if(busField.isPresent()) {
+                    AIdentifierVarExpIR busIdentifier = generateVarIdentifier(busField.get().getName());
+                    for (AIdentifierVarExpIR connected : connectionElements.get(busName).getFirst()) {
+                        ACallObjectStmIR output = createBindStm(busName, busIdentifier, connected, "out");
+                        body.getStatements().add(output);
+                        ACallObjectStmIR input = createBindStm(busName, busIdentifier, connected, "in");
+                        body.getStatements().add(input);
+                    }
                 }
             }
 
@@ -662,14 +681,14 @@ public class ArchitecturalAnalysis {
         bind.setType(new AVoidTypeIR());
         bind.setFieldName("bind");
         AIdentifierObjectDesignatorIR connectedIdentifier = new AIdentifierObjectDesignatorIR();
-        AIdentifierVarExpIR connectedInput = generateVarIdentifier(connected.getName() + "." + busName + "_" + ioDesignator);
+        AIdentifierVarExpIR connectedInput = generateVarIdentifier(connected.getName() + "." + busName + "_" + ioDesignator + "put");
         connectedIdentifier.setExp(connectedInput);
         bind.setDesignator(connectedIdentifier);
         AClassTypeIR inputType = new AClassTypeIR();
-        inputType.setName(connected.getType() + "." + busName + "_" + ioDesignator);
+        inputType.setName(connected.getType() + "." + busName + "_" + ioDesignator + "put");
         AFieldExpIR channel = new AFieldExpIR();
         channel.setObject(busIdentifier.clone());
-        channel.setMemberName(ioDesignator + "[" + (busName + "_identifier::").toUpperCase() + connected.getName() + "]");
+        channel.setMemberName(ioDesignator + "puts[" + (busName + "_identifier::").toUpperCase() + connected.getName() + "]");
         bind.setArgs(Arrays.asList(channel));
         return bind;
     }

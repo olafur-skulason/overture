@@ -1,9 +1,149 @@
 #pragma once
 
-SC_MODULE(System)
+struct Active: public sc_module
+{
+    SC_CTOR(Active)
+    {
+    }
+public:
+    int counter  = 0;
+    sc_in<bool> clk ;
+    int clk_frequency ;
+    void F();
+protected:
+private:
+    i_host_Active * os ;
+}
+
+##########
+#include "Active.h"
+
+
+void Active::F(){
+    counter = counter + 1;
+
+}
+
+
+
+##########
+#pragma once
+
+#include <list>
+#include <systemc>
+#include "System.h"
+#include "Active.h"
+
+public class i_host_Active
+{
+public:
+    virtual ~i_host_Active();
+protected:
+private:
+}
+
+##########
+#include "i_host_Active.h"
+
+
+##########
+#pragma once
+
+struct cpu_cpu_a: public sc_module, public i_host_Active
+{
+    SC_CTOR(cpu_cpu_a)
+    {
+        a.clk(clk);
+        a.clk_frequency = clk_frequency;
+    }
+public:
+    Active a  = Active("cpu_cpu_a.a");
+    sc_clock clk  = sc_clock("cpu_cpu_a.clk", 1000000);
+    int clk_frequency  = 1000000;
+protected:
+private:
+}
+
+##########
+#include "cpu_cpu_a.h"
+
+
+
+
+##########
+#pragma once
+
+struct cpu_virtual: public sc_module
+{
+    SC_CTOR(cpu_virtual)
+    {
+    }
+public:
+    sc_clock clk  = sc_clock("cpu_virtual.clk", 1000000000000);
+    int clk_frequency  = 1000000000000;
+protected:
+private:
+}
+
+##########
+#include "cpu_virtual.h"
+
+
+
+
+##########
+#pragma once
+
+struct bus_virtual: public sc_module
+{
+    SC_CTOR(bus_virtual)
+    {
+        for(int i = 0; i < BUS_VIRTUAL_IDENTIFIER_COUNT; i++)
+        {
+            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+        }
+    }
+
+public:
+    tlm_utils::simple_target_socket_tagged<bus_virtual> inputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
+    tlm_utils::simple_initiator_socket_tagged<bus_virtual> outputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
+    void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+private:
+    sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
+    sc_mutex bus_mutex;
+    tlm::tlm_phase phase = tlm::BEGIN_REQ;
+    sc_time bus_speed = sc_time(1000000000000, SC_NS);
+};
+##########
+#include "bus_virtual.h"
+
+void bus_virtual::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+	sc_dt::uint64 address = payload.get_address();
+	sc_dt::uint64 masked_address;
+	sc_dt::uint64 target = resolve_address(address, masked_address);
+	bus_mutex.lock();
+	payload.set_address(masked_address);
+	outputs[target]->b_transport(payload, bus_speed);
+	channel_mutex.unlock();
+}
+
+sc_dt::uint64 bus_virtual::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+{
+	masked_address = 0x00000000FFFFFFFF & address;
+	return address >> 32;
+}
+##########
+#pragma once
+
+struct System: public sc_module
 {
     SC_CTOR(System)
     {
+        cpu_cpu_a.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_cpu_a]);
+        cpu_cpu_a.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_cpu_a]);
+        cpu_virtual.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
+        cpu_virtual.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
     }
 public:
     cpu_cpu_a cpu_a  = cpu_cpu_a("System.cpu_a");
@@ -27,53 +167,6 @@ int main()
 
     sc_close_vcd_trace_file(tf);
     return 0;
-}
-
-##########
-#pragma once
-
-SC_MODULE(cpu_cpu_a)
-{
-    SC_CTOR(cpu_cpu_a)
-    {
-        a.clk(clk);
-    }
-public:
-    Active a  = Active("cpu_cpu_a.a");
-    sc_clock clk  = sc_clock("cpu_cpu_a.clk", 100);
-protected:
-private:
-}
-
-##########
-#include "cpu_cpu_a.h"
-
-
-
-##########
-#pragma once
-
-SC_MODULE(Active)
-{
-    SC_CTOR(Active)
-    {
-    }
-public:
-    int counter  = 0;
-    sc_in<bool> clk ;
-    void F();
-
-protected:
-private:
-}
-
-##########
-#include "Active.h"
-
-void Active::F()
-{
-    counter = counter + 1;
-
 }
 
 
