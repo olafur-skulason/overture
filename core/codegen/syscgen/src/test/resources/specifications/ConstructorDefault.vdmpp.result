@@ -1,17 +1,14 @@
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "B.h"
 
-public class A
+class A
 {
 public:
     A();
     virtual ~A();
 protected:
 private:
-}
+};
 
 ##########
 #include "A.h"
@@ -25,18 +22,15 @@ A::A(){
 ##########
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "A.h"
 
-public class B
+class B
 {
 public:
     B();
     virtual ~B();
 protected:
 private:
-}
+};
 
 ##########
 #include "B.h"

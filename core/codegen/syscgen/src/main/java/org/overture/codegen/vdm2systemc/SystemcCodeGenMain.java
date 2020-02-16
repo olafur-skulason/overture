@@ -2,6 +2,7 @@
 
 package org.overture.codegen.vdm2systemc;
 
+import org.eclipse.osgi.framework.internal.core.Msg;
 import org.overture.ast.analysis.AnalysisException;
 import org.overture.ast.definitions.SClassDefinition;
 import org.overture.ast.lex.Dialect;
@@ -97,6 +98,7 @@ public class SystemcCodeGenMain
 			usage("No output directory specified");
 		}
 
+		MsgPrinter.getPrinter().println("Starting generation.");
 		handle_files(files, irSettings, systemcSettings, outputDir);
 
 		clock = System.currentTimeMillis() - clock;

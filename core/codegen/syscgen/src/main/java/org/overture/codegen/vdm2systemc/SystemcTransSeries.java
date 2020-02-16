@@ -60,12 +60,12 @@ public class SystemcTransSeries
 		DurationToCyclesTransformation durationToCyclesTransformation = new DurationToCyclesTransformation();
 
         // Set up order of transformations
-		series.add(dependenciesTransformation);
 		series.add(funcTr);
 		series.add(assignTr);
 		series.add(cpuInitializationTransformation);
 		series.add(busInitializationTransformation);
 		series.add(durationToCyclesTransformation);
+		series.add(dependenciesTransformation);
 
 		// Construct pre analysis transformations
 		RemoteMethodCallTransformations remoteMethodCallTransformations = new RemoteMethodCallTransformations(rootName);

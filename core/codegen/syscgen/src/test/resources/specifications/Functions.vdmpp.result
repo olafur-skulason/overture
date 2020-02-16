@@ -1,9 +1,7 @@
 #pragma once
 
-#include <list>
-#include <systemc>
 
-public class Functions
+class Functions
 {
 public:
     Functions();
@@ -13,7 +11,7 @@ public:
     virtual ~Functions();
 protected:
 private:
-}
+};
 
 ##########
 #include "Functions.h"

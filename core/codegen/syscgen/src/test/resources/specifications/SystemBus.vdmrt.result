@@ -1,18 +1,26 @@
 #pragma once
 
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "System.h"
+#include "i_host_A.h"
+
 struct A: public sc_module
 {
     SC_CTOR(A)
     {
     }
 public:
-    sc_in<bool> clk ;
-    int clk_frequency ;
+    sc_in<bool> clk;
+    int clk_frequency;
     void T(int a);
 protected:
 private:
-    i_host_A * os ;
-}
+    i_host_A * os;
+};
 
 ##########
 #include "A.h"
@@ -27,19 +35,28 @@ void A::T(int a){
 ##########
 #pragma once
 
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "A.h"
+#include "System.h"
+#include "i_host_B.h"
+
 struct B: public sc_module
 {
     SC_CTOR(B)
     {
     }
 public:
-    sc_in<bool> clk ;
-    int clk_frequency ;
+    sc_in<bool> clk;
+    int clk_frequency;
     void R();
 protected:
 private:
-    i_host_B * os ;
-}
+    i_host_B * os;
+};
 
 ##########
 #include "B.h"
@@ -55,19 +72,14 @@ void B::R(){
 ##########
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "System.h"
-#include "A.h"
-#include "B.h"
 
-public class i_host_A
+class i_host_A
 {
 public:
     virtual ~i_host_A();
 protected:
 private:
-}
+};
 
 ##########
 #include "i_host_A.h"
@@ -76,20 +88,15 @@ private:
 ##########
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "System.h"
-#include "A.h"
-#include "B.h"
 
-public class i_host_B
+class i_host_B
 {
 public:
     virtual void a_T(int a) = 0;
     virtual ~i_host_B();
 protected:
 private:
-}
+};
 
 ##########
 #include "i_host_B.h"
@@ -99,40 +106,56 @@ private:
 ##########
 #pragma once
 
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "i_host_B.h"
+#include "B.h"
+
 struct cpu_y: public sc_module, public i_host_B
 {
     SC_CTOR(cpu_y)
     {
         b.clk(clk);
         b.clk_frequency = clk_frequency;
-        transfer_input.register_b_transport(this, &cpu_y::transfer_input_handler);
+        bus_transfer_input.register_b_transport(this, &cpu_y::bus_transfer_input_handler);
+        bus_virtual_input.register_b_transport(this, &cpu_y::bus_virtual_input_handler);
     }
 public:
-    B b  = B("cpu_y.b");
-    sc_clock clk  = sc_clock("cpu_y.clk", 100);
-    int clk_frequency  = 100;
-    tlm_utils::simple_initiator_socket<cpu_y> transfer_output ;
-    tlm_utils::simple_target_socket<cpu_y> transfer_input ;
+    B b = B("cpu_y.b");
+    sc_clock clk = sc_clock("cpu_y.clk", 100);
+    int clk_frequency = 100;
+    tlm_utils::simple_initiator_socket<cpu_y> bus_transfer_output;
+    tlm_utils::simple_target_socket<cpu_y> bus_transfer_input;
+    tlm_utils::simple_initiator_socket<cpu_y> bus_virtual_output;
+    tlm_utils::simple_target_socket<cpu_y> bus_virtual_input;
     void a_T(int a);
-    void transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+    void bus_transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+    void bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
 protected:
 private:
     template<typename result, typename params>
-result write_transfer(int destination, int method, params parameters);
+result write_bus_transfer(int destination, int method, params parameters);
     template<typename params>
-void write_transfer_void(int destination, int method, params parameters);
-}
+void write_bus_transfer_void(int destination, int method, params parameters);
+    template<typename result, typename params>
+result write_bus_virtual(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_virtual_void(int destination, int method, params parameters);
+};
 
 ##########
 #include "cpu_y.h"
 
 
 void cpu_y::a_T(int a){
-    write_transfer_void<int>(transfer_ids::a, exposed_methods_A::T, a);
+    write_bus_transfer_void<int>(BUS_TRANSFER_IDENTIFIER::a, EXPOSED_METHODS_A::T, a);
 
 }
 
-void cpu_y::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+void cpu_y::bus_transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
 {
     tlm::tlm_command cmd = payload.get_command();
     sc_dt::uint64    adr = payload.get_address();
@@ -141,7 +164,7 @@ void cpu_y::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time &
     unsigned char*   byt = payload.get_byte_enable_ptr();
     unsigned int     wid = payload.get_streaming_width();
     int module, method;
-    split_address(adr, module, method);
+    bus_transfer::split_address(adr, module, method);
     switch(module)
     {
 case deployed_modules_cpu_y_t::a:
@@ -161,7 +184,7 @@ case deployed_modules_cpu_y_t::a:
 }
 
 template<typename result, typename params>
-result cpu_y::write_transfer(int destination, int method, params parameters)
+result cpu_y::write_bus_transfer(int destination, int method, params parameters)
 {
 	sc_time delay = sc_time(10, SC_NS);
 	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
@@ -176,7 +199,7 @@ result cpu_y::write_transfer(int destination, int method, params parameters)
 	payload->set_dmi_allowed(false);
 	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
-	transfer_output->b_transport(*payload, delay);
+	bus_transfer_output->b_transport(*payload, delay);
 
 	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
 	delete payload;
@@ -184,65 +207,12 @@ result cpu_y::write_transfer(int destination, int method, params parameters)
 }
 
 template<typename params>
-void cpu_y::write_transfer_void(int destination, int method, params parameters)
+void cpu_y::write_bus_transfer_void(int destination, int method, params parameters)
 {
-	write_transfer<char, params>(destination, method, parameters);
+	write_bus_transfer<char, params>(destination, method, parameters);
 }
 
-
-
-##########
-#pragma once
-
-struct cpu_virtual: public sc_module
-{
-    SC_CTOR(cpu_virtual)
-    {
-    }
-public:
-    sc_clock clk  = sc_clock("cpu_virtual.clk", 1000000000000);
-    int clk_frequency  = 1000000000000;
-protected:
-private:
-}
-
-##########
-#include "cpu_virtual.h"
-
-
-
-
-##########
-#pragma once
-
-struct cpu_x: public sc_module, public i_host_A
-{
-    SC_CTOR(cpu_x)
-    {
-        a.clk(clk);
-        a.clk_frequency = clk_frequency;
-        transfer_input.register_b_transport(this, &cpu_x::transfer_input_handler);
-    }
-public:
-    A a  = A("cpu_x.a");
-    sc_clock clk  = sc_clock("cpu_x.clk", 100);
-    int clk_frequency  = 100;
-    tlm_utils::simple_initiator_socket<cpu_x> transfer_output ;
-    tlm_utils::simple_target_socket<cpu_x> transfer_input ;
-    void transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
-protected:
-private:
-    template<typename result, typename params>
-result write_transfer(int destination, int method, params parameters);
-    template<typename params>
-void write_transfer_void(int destination, int method, params parameters);
-}
-
-##########
-#include "cpu_x.h"
-
-
-void cpu_x::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+void cpu_y::bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
 {
     tlm::tlm_command cmd = payload.get_command();
     sc_dt::uint64    adr = payload.get_address();
@@ -251,7 +221,113 @@ void cpu_x::transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time &
     unsigned char*   byt = payload.get_byte_enable_ptr();
     unsigned int     wid = payload.get_streaming_width();
     int module, method;
-    split_address(adr, module, method);
+    bus_virtual::split_address(adr, module, method);
+    switch(module)
+    {
+case deployed_modules_cpu_y_t::a:
+    switch(method)
+    {
+    default:
+        payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_y::write_bus_virtual(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	bus_virtual_output->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_y::write_bus_virtual_void(int destination, int method, params parameters)
+{
+	write_bus_virtual<char, params>(destination, method, parameters);
+}
+
+
+
+##########
+#pragma once
+
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "i_host_A.h"
+#include "A.h"
+#include "B.h"
+
+struct cpu_x: public sc_module, public i_host_A
+{
+    SC_CTOR(cpu_x)
+    {
+        a.clk(clk);
+        a.clk_frequency = clk_frequency;
+        bus_transfer_input.register_b_transport(this, &cpu_x::bus_transfer_input_handler);
+        bus_virtual_input.register_b_transport(this, &cpu_x::bus_virtual_input_handler);
+    }
+public:
+    A a = A("cpu_x.a");
+    sc_clock clk = sc_clock("cpu_x.clk", 100);
+    int clk_frequency = 100;
+    tlm_utils::simple_initiator_socket<cpu_x> bus_transfer_output;
+    tlm_utils::simple_target_socket<cpu_x> bus_transfer_input;
+    tlm_utils::simple_initiator_socket<cpu_x> bus_virtual_output;
+    tlm_utils::simple_target_socket<cpu_x> bus_virtual_input;
+    void bus_transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+    void bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+protected:
+private:
+    template<typename result, typename params>
+result write_bus_transfer(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_transfer_void(int destination, int method, params parameters);
+    template<typename result, typename params>
+result write_bus_virtual(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_virtual_void(int destination, int method, params parameters);
+};
+
+##########
+#include "cpu_x.h"
+
+
+void cpu_x::bus_transfer_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+    int module, method;
+    bus_transfer::split_address(adr, module, method);
     switch(module)
     {
 case deployed_modules_cpu_x_t::b:
@@ -274,7 +350,7 @@ case deployed_modules_cpu_x_t::b:
 }
 
 template<typename result, typename params>
-result cpu_x::write_transfer(int destination, int method, params parameters)
+result cpu_x::write_bus_transfer(int destination, int method, params parameters)
 {
 	sc_time delay = sc_time(10, SC_NS);
 	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
@@ -289,7 +365,7 @@ result cpu_x::write_transfer(int destination, int method, params parameters)
 	payload->set_dmi_allowed(false);
 	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
-	transfer_output->b_transport(*payload, delay);
+	bus_transfer_output->b_transport(*payload, delay);
 
 	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
 	delete payload;
@@ -297,9 +373,69 @@ result cpu_x::write_transfer(int destination, int method, params parameters)
 }
 
 template<typename params>
-void cpu_x::write_transfer_void(int destination, int method, params parameters)
+void cpu_x::write_bus_transfer_void(int destination, int method, params parameters)
 {
-	write_transfer<char, params>(destination, method, parameters);
+	write_bus_transfer<char, params>(destination, method, parameters);
+}
+
+void cpu_x::bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+    int module, method;
+    bus_virtual::split_address(adr, module, method);
+    switch(module)
+    {
+case deployed_modules_cpu_x_t::b:
+    switch(method)
+    {
+    case exposed_methods_B_t::T:
+    this->a.T(*reinterpret_cast<int *>(ptr));
+    break;
+    default:
+        payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_x::write_bus_virtual(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	bus_virtual_output->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_x::write_bus_virtual_void(int destination, int method, params parameters)
+{
+	write_bus_virtual<char, params>(destination, method, parameters);
 }
 
 
@@ -307,20 +443,137 @@ void cpu_x::write_transfer_void(int destination, int method, params parameters)
 ##########
 #pragma once
 
-struct transfer: public sc_module
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "B.h"
+
+struct cpu_virtual: public sc_module
 {
-    SC_CTOR(transfer)
+    SC_CTOR(cpu_virtual)
     {
-        for(int i = 0; i < TRANSFER_IDENTIFIER_COUNT; i++)
+        bus_virtual_input.register_b_transport(this, &cpu_virtual::bus_virtual_input_handler);
+    }
+public:
+    sc_clock clk = sc_clock("cpu_virtual.clk", 1000000000000);
+    int clk_frequency = 1000000000000;
+    tlm_utils::simple_initiator_socket<cpu_virtual> bus_virtual_output;
+    tlm_utils::simple_target_socket<cpu_virtual> bus_virtual_input;
+    void bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
+protected:
+private:
+    template<typename result, typename params>
+result write_bus_virtual(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_virtual_void(int destination, int method, params parameters);
+};
+
+##########
+#include "cpu_virtual.h"
+
+
+void cpu_virtual::bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+    int module, method;
+    bus_virtual::split_address(adr, module, method);
+    switch(module)
+    {
+case deployed_modules_cpu_virtual_t::b:
+    switch(method)
+    {
+    case exposed_methods_B_t::T:
+    this->a.T(*reinterpret_cast<int *>(ptr));
+    break;
+    default:
+        payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;
+case deployed_modules_cpu_virtual_t::a:
+    switch(method)
+    {
+    default:
+        payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_virtual::write_bus_virtual(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	bus_virtual_output->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_virtual::write_bus_virtual_void(int destination, int method, params parameters)
+{
+	write_bus_virtual<char, params>(destination, method, parameters);
+}
+
+
+
+##########
+#pragma once
+
+#include <systemc.h>
+
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+typedef enum bus_transfer_identifier {
+    bus_transfer_x,
+    bus_transfer_y,
+    BUS_TRANSFER_IDENTIFIER_COUNT
+} BUS_TRANSFER_IDENTIFIER;
+
+struct bus_transfer: public sc_module
+{
+    SC_CTOR(bus_transfer)
+    {
+        for(int i = 0; i < BUS_TRANSFER_IDENTIFIER_COUNT; i++)
         {
-            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+            inputs[i].register_b_transport(this, &bus_transfer::b_transfer, i);
         }
     }
 
 public:
-    tlm_utils::simple_target_socket_tagged<transfer> inputs[TRANSFER_IDENTIFIER_COUNT];
-    tlm_utils::simple_initiator_socket_tagged<transfer> outputs[TRANSFER_IDENTIFIER_COUNT];
+    tlm_utils::simple_target_socket_tagged<bus_transfer> inputs[BUS_TRANSFER_IDENTIFIER_COUNT];
+    tlm_utils::simple_initiator_socket_tagged<bus_transfer> outputs[BUS_TRANSFER_IDENTIFIER_COUNT];
     void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+    static void split_address(sc_dt::uint64 address, int & module, int & method);
 private:
     sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
     sc_mutex bus_mutex;
@@ -328,9 +581,9 @@ private:
     sc_time bus_speed = sc_time(100, SC_NS);
 };
 ##########
-#include "transfer.h"
+#include "bus_transfer.h"
 
-void transfer::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_time & delay)
+void bus_transfer::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_time & delay)
 {
 	sc_dt::uint64 address = payload.get_address();
 	sc_dt::uint64 masked_address;
@@ -338,16 +591,31 @@ void transfer::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_tim
 	bus_mutex.lock();
 	payload.set_address(masked_address);
 	outputs[target]->b_transport(payload, bus_speed);
-	channel_mutex.unlock();
+	bus_mutex.unlock();
 }
 
-sc_dt::uint64 transfer::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+sc_dt::uint64 bus_transfer::split_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
 {
 	masked_address = 0x00000000FFFFFFFF & address;
 	return address >> 32;
 }
+
+
 ##########
 #pragma once
+
+#include <systemc.h>
+
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+typedef enum bus_virtual_identifier {
+    bus_virtual_virtual_cpu,
+    bus_virtual_y,
+    bus_virtual_x,
+    BUS_VIRTUAL_IDENTIFIER_COUNT
+} BUS_VIRTUAL_IDENTIFIER;
 
 struct bus_virtual: public sc_module
 {
@@ -355,7 +623,7 @@ struct bus_virtual: public sc_module
     {
         for(int i = 0; i < BUS_VIRTUAL_IDENTIFIER_COUNT; i++)
         {
-            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+            inputs[i].register_b_transport(this, &bus_virtual::b_transfer, i);
         }
     }
 
@@ -363,6 +631,7 @@ public:
     tlm_utils::simple_target_socket_tagged<bus_virtual> inputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
     tlm_utils::simple_initiator_socket_tagged<bus_virtual> outputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
     void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+    static void split_address(sc_dt::uint64 address, int & module, int & method);
 private:
     sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
     sc_mutex bus_mutex;
@@ -380,39 +649,54 @@ void bus_virtual::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_
 	bus_mutex.lock();
 	payload.set_address(masked_address);
 	outputs[target]->b_transport(payload, bus_speed);
-	channel_mutex.unlock();
+	bus_mutex.unlock();
 }
 
-sc_dt::uint64 bus_virtual::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+sc_dt::uint64 bus_virtual::split_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
 {
 	masked_address = 0x00000000FFFFFFFF & address;
 	return address >> 32;
 }
+
+
 ##########
 #pragma once
+
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "cpu_x.h"
+#include "cpu_y.h"
+#include "bus_transfer.h"
+#include "cpu_virtual.h"
+#include "bus_virtual.h"
 
 struct System: public sc_module
 {
     SC_CTOR(System)
     {
-        x.transfer_outputs.bind(transfer.outputs[TRANSFER_IDENTIFIER::x]);
-        x.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::x]);
-        y.transfer_outputs.bind(transfer.outputs[TRANSFER_IDENTIFIER::y]);
-        y.transfer_inputs.bind(transfer.inputs[TRANSFER_IDENTIFIER::y]);
-        cpu_y.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_y]);
-        cpu_y.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_y]);
-        cpu_virtual.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
-        cpu_virtual.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
-        cpu_x.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_x]);
-        cpu_x.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_x]);
+        x.bus_transfer_output.bind(transfer.outputs[BUS_TRANSFER_IDENTIFIER::bus_transfer_x]);
+        x.bus_transfer_input.bind(transfer.inputs[BUS_TRANSFER_IDENTIFIER::bus_transfer_x]);
+        y.bus_transfer_output.bind(transfer.outputs[BUS_TRANSFER_IDENTIFIER::bus_transfer_y]);
+        y.bus_transfer_input.bind(transfer.inputs[BUS_TRANSFER_IDENTIFIER::bus_transfer_y]);
+        virtual_cpu.bus_virtual_output.bind(virtual_bus.outputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_virtual_cpu]);
+        virtual_cpu.bus_virtual_input.bind(virtual_bus.inputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_virtual_cpu]);
+        y.bus_virtual_output.bind(virtual_bus.outputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_y]);
+        y.bus_virtual_input.bind(virtual_bus.inputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_y]);
+        x.bus_virtual_output.bind(virtual_bus.outputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_x]);
+        x.bus_virtual_input.bind(virtual_bus.inputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_x]);
     }
 public:
-    cpu_x x  = cpu_x("System.x");
-    cpu_y y  = cpu_y("System.y");
-    bus_transfer transfer  = bus_transfer("System.transfer");
+    cpu_x x = cpu_x("System.x");
+    cpu_y y = cpu_y("System.y");
+    bus_transfer transfer = bus_transfer("System.transfer");
+    cpu_virtual virtual_cpu = cpu_virtual("cpu_virtual");
+    bus_virtual virtual_bus = bus_virtual("bus_virtual");
 protected:
 private:
-}
+};
 
 ##########
 #include "System.h"
@@ -420,7 +704,7 @@ private:
 
 int main()
 {
-    System top = System("System";
+    System top = System("System");
 
     sc_trace_file *tf;
     tf->sc_create_vcd_trace_file("WaveForm");

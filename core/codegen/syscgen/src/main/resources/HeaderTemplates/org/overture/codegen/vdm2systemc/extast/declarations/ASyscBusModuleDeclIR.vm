@@ -1,10 +1,18 @@
 #set ($nameUpper = $node.getName().toUpperCase())
 #pragma once
-\#include "includes.h"
+
+\#include <systemc.h>
+
+\#include <tlm.h>
+\#include <tlm_utils/simple_initiator_socket.h>
+\#include <tlm_utils/simple_target_socket.h>
+#foreach($dep in $node.getDependencies())
+\#include $dep
+#end
 
 typedef enum ${node.getName()}_identifier {
 #foreach($conn in $node.getConnectedElements())
-    $conn,
+    ${node.getName()}_$conn,
 #end
     ${nameUpper}_IDENTIFIER_COUNT
 } ${nameUpper}_IDENTIFIER;
@@ -23,6 +31,7 @@ public:
     tlm_utils::simple_target_socket_tagged<$node.getName()> inputs[${nameUpper}_IDENTIFIER_COUNT];
     tlm_utils::simple_initiator_socket_tagged<$node.getName()> outputs[${nameUpper}_IDENTIFIER_COUNT];
     void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+    static void split_address(sc_dt::uint64 address, int & module, int & method);
 private:
     sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
     sc_mutex bus_mutex;

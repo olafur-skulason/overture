@@ -4,6 +4,7 @@ import org.eclipse.core.internal.utils.Convert;
 import org.overture.codegen.ir.*;
 import org.overture.codegen.ir.statements.ACyclesStmIR;
 import org.overture.codegen.ir.statements.ADurationStmIR;
+import org.overture.codegen.printer.MsgPrinter;
 import org.overture.codegen.utils.GeneratedData;
 import org.overture.codegen.utils.GeneratedModule;
 import org.overture.ast.analysis.AnalysisException;
@@ -73,6 +74,7 @@ public class SystemcCodeGen extends CodeGenBase
 	protected GeneratedData genVdmToTargetLang(
 			List<IRStatus<PIR>> statuses) throws AnalysisException
 	{
+		MsgPrinter.getPrinter().println("Starting genVdmToTargetLang.");
 		List<GeneratedModule> genHeaders = new LinkedList<GeneratedModule>();
 		List<GeneratedModule> genSources = new LinkedList<GeneratedModule>();
 		List<GeneratedModule> genModules = new LinkedList<GeneratedModule>();
@@ -96,12 +98,16 @@ public class SystemcCodeGen extends CodeGenBase
 
 		SystemcTransSeries transSeries = new SystemcTransSeries(this, architecturalAnalysis.getRootName());
 		RunTransformations(canBeGenerated, transSeries.getPreArchitecturalSeries());
+		MsgPrinter.getPrinter().println("Pre-architectural transformation series run.");
 
 		try {
 			architecturalAnalysis.AnalyseArchitecture(canBeGenerated);
+			MsgPrinter.getPrinter().println("Architectural analysis complete.");
 		}
 		catch(org.overture.codegen.ir.analysis.AnalysisException e) {
+			MsgPrinter.getPrinter().println("Architectural analysis failed. Reason: " + e.getMessage());
 			warnings.add("Error in architectural analysis. " + e.getMessage());
+			return null;
 		}
 
 		RunTransformations(canBeGenerated, transSeries.getSeries());

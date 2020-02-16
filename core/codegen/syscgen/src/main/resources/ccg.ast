@@ -29,6 +29,7 @@ IR = #decl
        (interfaces):java_String*
     | {syscBusModule}
         [name]:java_String
+        (dependencies):eString*
         (connectedElements):java_String*
         [connectedElementCount]:java_Integer
         [speed]:java_Long

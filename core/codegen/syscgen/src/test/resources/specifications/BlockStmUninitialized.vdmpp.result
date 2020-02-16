@@ -1,9 +1,8 @@
 #pragma once
 
 #include <list>
-#include <systemc>
 
-public class A
+class A
 {
 public:
     int op();
@@ -11,7 +10,7 @@ public:
     virtual ~A();
 protected:
 private:
-}
+};
 
 ##########
 #include "A.h"

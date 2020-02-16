@@ -1,10 +1,7 @@
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "Class.h"
 
-public class A
+class A
 {
 public:
     int one();
@@ -12,7 +9,7 @@ public:
     virtual ~A();
 protected:
 private:
-}
+};
 
 ##########
 #include "A.h"
@@ -32,11 +29,9 @@ A::A(){
 ##########
 #pragma once
 
-#include <list>
-#include <systemc>
 #include "A.h"
 
-public class Class
+class Class
 {
 public:
     void Caller();
@@ -45,8 +40,8 @@ public:
     virtual ~Class();
 protected:
 private:
-    A a  = A();
-}
+    A a = A();
+};
 
 ##########
 #include "Class.h"

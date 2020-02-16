@@ -1,9 +1,8 @@
 #pragma once
 
-\#include "includes.h"
-###foreach($dep in $node.getDependencies())
-##\#include $SystemcFormat.getString($dep)
-##end
+#foreach($dep in $node.getDependencies())
+\#include $dep
+#end
 
 ## # if(!SystemcFormat.isNull($node.getThread()))
 ##	#set ( $activeObject = true )

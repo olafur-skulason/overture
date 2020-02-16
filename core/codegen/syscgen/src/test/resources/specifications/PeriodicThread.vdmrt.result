@@ -1,5 +1,12 @@
 #pragma once
 
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "i_host_Counter.h"
+
 struct Counter: public sc_module
 {
     SC_CTOR(Counter)
@@ -8,16 +15,16 @@ struct Counter: public sc_module
         sensitive << clk;
     }
 public:
-    int counter  = 0;
-    sc_in<bool> clk ;
-    int clk_frequency ;
+    int counter = 0;
+    sc_in<bool> clk;
+    int clk_frequency;
     void increment();
     void thread();
 protected:
 private:
-    sc_mutex mutex ;
-    i_host_Counter * os ;
-}
+    sc_mutex mutex;
+    i_host_Counter * os;
+};
 
 ##########
 #include "Counter.h"
@@ -43,18 +50,14 @@ void Counter::thread() {
 ##########
 #pragma once
 
-#include <list>
-#include <systemc>
-#include "Periodic.h"
-#include "Counter.h"
 
-public class i_host_Counter
+class i_host_Counter
 {
 public:
     virtual ~i_host_Counter();
 protected:
 private:
-}
+};
 
 ##########
 #include "i_host_Counter.h"
@@ -63,50 +66,198 @@ private:
 ##########
 #pragma once
 
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "i_host_Counter.h"
+#include "Counter.h"
+
 struct cpu_processor: public sc_module, public i_host_Counter
 {
     SC_CTOR(cpu_processor)
     {
         counter.clk(clk);
         counter.clk_frequency = clk_frequency;
+        bus_virtual_input.register_b_transport(this, &cpu_processor::bus_virtual_input_handler);
     }
 public:
-    Counter counter  = Counter("cpu_processor.counter");
-    sc_clock clk  = sc_clock("cpu_processor.clk", 100000);
-    int clk_frequency  = 100000;
+    Counter counter = Counter("cpu_processor.counter");
+    sc_clock clk = sc_clock("cpu_processor.clk", 100000);
+    int clk_frequency = 100000;
+    tlm_utils::simple_initiator_socket<cpu_processor> bus_virtual_output;
+    tlm_utils::simple_target_socket<cpu_processor> bus_virtual_input;
+    void bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
 protected:
 private:
-}
+    template<typename result, typename params>
+result write_bus_virtual(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_virtual_void(int destination, int method, params parameters);
+};
 
 ##########
 #include "cpu_processor.h"
 
 
+void cpu_processor::bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+    int module, method;
+    bus_virtual::split_address(adr, module, method);
+    switch(module)
+    {
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_processor::write_bus_virtual(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	bus_virtual_output->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_processor::write_bus_virtual_void(int destination, int method, params parameters)
+{
+	write_bus_virtual<char, params>(destination, method, parameters);
+}
+
 
 
 ##########
 #pragma once
+
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
 
 struct cpu_virtual: public sc_module
 {
     SC_CTOR(cpu_virtual)
     {
+        bus_virtual_input.register_b_transport(this, &cpu_virtual::bus_virtual_input_handler);
     }
 public:
-    sc_clock clk  = sc_clock("cpu_virtual.clk", 1000000000000);
-    int clk_frequency  = 1000000000000;
+    sc_clock clk = sc_clock("cpu_virtual.clk", 1000000000000);
+    int clk_frequency = 1000000000000;
+    tlm_utils::simple_initiator_socket<cpu_virtual> bus_virtual_output;
+    tlm_utils::simple_target_socket<cpu_virtual> bus_virtual_input;
+    void bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay);
 protected:
 private:
-}
+    template<typename result, typename params>
+result write_bus_virtual(int destination, int method, params parameters);
+    template<typename params>
+void write_bus_virtual_void(int destination, int method, params parameters);
+};
 
 ##########
 #include "cpu_virtual.h"
 
 
+void cpu_virtual::bus_virtual_input_handler(tlm::tlm_generic_payload & payload, sc_time & delay)
+{
+    tlm::tlm_command cmd = payload.get_command();
+    sc_dt::uint64    adr = payload.get_address();
+    unsigned char*   ptr = payload.get_data_ptr();
+    unsigned int     len = payload.get_data_length();
+    unsigned char*   byt = payload.get_byte_enable_ptr();
+    unsigned int     wid = payload.get_streaming_width();
+    int module, method;
+    bus_virtual::split_address(adr, module, method);
+    switch(module)
+    {
+case deployed_modules_cpu_virtual_t::counter:
+    switch(method)
+    {
+    default:
+        payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+        return;
+    }
+    break;
+        default:
+            payload.set_response_status(tlm::TLM_COMMAND_ERROR_RESPONSE);
+            return;
+    }
+
+    payload.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+template<typename result, typename params>
+result cpu_virtual::write_bus_virtual(int destination, int method, params parameters)
+{
+	sc_time delay = sc_time(10, SC_NS);
+	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
+	tlm::tlm_command cmd = tlm::tlm_command::TLM_IGNORE_COMMAND;
+	payload->set_command(cmd);
+	sc_dt::uint64 address = (((sc_dt::uint64)destination) << 32) + method;
+	payload->set_address(address);
+	payload->set_data_ptr(reinterpret_cast<unsigned char*>(&parameters));
+	payload->set_data_length(sizeof(params));
+	payload->set_streaming_width(4);
+	payload->set_byte_enable_ptr(0);
+	payload->set_dmi_allowed(false);
+	payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+
+	bus_virtual_output->b_transport(*payload, delay);
+
+	result r = *(reinterpret_cast<result *>(payload->get_data_ptr()));
+	delete payload;
+	return r;
+}
+
+template<typename params>
+void cpu_virtual::write_bus_virtual_void(int destination, int method, params parameters)
+{
+	write_bus_virtual<char, params>(destination, method, parameters);
+}
+
 
 
 ##########
 #pragma once
+
+#include <systemc.h>
+
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+typedef enum bus_virtual_identifier {
+    bus_virtual_virtual_cpu,
+    bus_virtual_processor,
+    BUS_VIRTUAL_IDENTIFIER_COUNT
+} BUS_VIRTUAL_IDENTIFIER;
 
 struct bus_virtual: public sc_module
 {
@@ -114,7 +265,7 @@ struct bus_virtual: public sc_module
     {
         for(int i = 0; i < BUS_VIRTUAL_IDENTIFIER_COUNT; i++)
         {
-            inputs[i].register_b_transport(this, &transfer::b_transfer, i);
+            inputs[i].register_b_transport(this, &bus_virtual::b_transfer, i);
         }
     }
 
@@ -122,6 +273,7 @@ public:
     tlm_utils::simple_target_socket_tagged<bus_virtual> inputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
     tlm_utils::simple_initiator_socket_tagged<bus_virtual> outputs[BUS_VIRTUAL_IDENTIFIER_COUNT];
     void b_transfer(int origin, tlm::tlm_generic_payload & trans, sc_time & delay);
+    static void split_address(sc_dt::uint64 address, int & module, int & method);
 private:
     sc_dt::uint64 resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address);
     sc_mutex bus_mutex;
@@ -139,31 +291,44 @@ void bus_virtual::b_transfer(int origin, tlm::tlm_generic_payload & payload, sc_
 	bus_mutex.lock();
 	payload.set_address(masked_address);
 	outputs[target]->b_transport(payload, bus_speed);
-	channel_mutex.unlock();
+	bus_mutex.unlock();
 }
 
-sc_dt::uint64 bus_virtual::resolve_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
+sc_dt::uint64 bus_virtual::split_address(sc_dt::uint64 address, sc_dt::uint64 & masked_address)
 {
 	masked_address = 0x00000000FFFFFFFF & address;
 	return address >> 32;
 }
+
+
 ##########
 #pragma once
+
+#include <systemc.h>
+#include <tlm.h>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+#include "cpu_processor.h"
+#include "cpu_virtual.h"
+#include "bus_virtual.h"
 
 struct Periodic: public sc_module
 {
     SC_CTOR(Periodic)
     {
-        cpu_processor.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_processor]);
-        cpu_processor.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_processor]);
-        cpu_virtual.bus_virtual_outputs.bind(bus_virtual.outputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
-        cpu_virtual.bus_virtual_inputs.bind(bus_virtual.inputs[BUS_VIRTUAL_IDENTIFIER::cpu_virtual]);
+        virtual_cpu.bus_virtual_output.bind(virtual_bus.outputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_virtual_cpu]);
+        virtual_cpu.bus_virtual_input.bind(virtual_bus.inputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_virtual_cpu]);
+        processor.bus_virtual_output.bind(virtual_bus.outputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_processor]);
+        processor.bus_virtual_input.bind(virtual_bus.inputs[BUS_VIRTUAL_IDENTIFIER::bus_virtual_processor]);
     }
 public:
-    cpu_processor processor  = cpu_processor("Periodic.processor");
+    cpu_processor processor = cpu_processor("Periodic.processor");
+    cpu_virtual virtual_cpu = cpu_virtual("cpu_virtual");
+    bus_virtual virtual_bus = bus_virtual("bus_virtual");
 protected:
 private:
-}
+};
 
 ##########
 #include "Periodic.h"
@@ -171,7 +336,7 @@ private:
 
 int main()
 {
-    Periodic top = Periodic("Periodic";
+    Periodic top = Periodic("Periodic");
 
     sc_trace_file *tf;
     tf->sc_create_vcd_trace_file("WaveForm");

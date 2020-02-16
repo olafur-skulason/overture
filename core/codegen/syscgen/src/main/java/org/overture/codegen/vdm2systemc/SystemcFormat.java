@@ -408,7 +408,13 @@ public class SystemcFormat
 		return bus.getConnectedElementCount().toString();
 	}
 
-	public String getBusName(AMethodDeclIR method) {
+	public String getBusNameInputHandler(AMethodDeclIR method) {
+		String methodName = method.getName();
+		List<String> nameComponents = Arrays.asList(methodName.split("_"));
+		return String.join("_", nameComponents.subList(0, nameComponents.size()-2));
+	}
+
+	public String getBusNameSocketWrite(AMethodDeclIR method) {
 		String methodName = method.getName();
 		List<String> nameComponents = Arrays.asList(methodName.split("_"));
 		return String.join("_", nameComponents.subList(1, nameComponents.get(nameComponents.size()-1).equals("void") ? nameComponents.size()-1 : nameComponents.size()));

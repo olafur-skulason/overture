@@ -1,9 +1,6 @@
 #set($name = '"' + $SystemcFormat.getName($node) + '.h"')
 \#include $name
 
-##foreach($deb in $node.getDependencies())
-## #include "$SystemcFormat.getString($deb)"
-##end
 #foreach ($method in $node.getMethods())
 #if (!$method.getIsConstructor())
 $SystemcFormat.format($method)##
@@ -18,7 +15,7 @@ $SystemcFormat.format($method)##
     unsigned char*   byt = payload.get_byte_enable_ptr();
     unsigned int     wid = payload.get_streaming_width();
     int module, method;
-    split_address(adr, module, method);
+    $SystemcFormat.getBusNameInputHandler($method)${colons}split_address(adr, module, method);
     switch(module)
     {
 #foreach( $stm in $cases)
@@ -32,7 +29,7 @@ $SystemcFormat.format($stm)
     payload.set_response_status(tlm${colons}TLM_OK_RESPONSE);
 }
 #elseif ($SystemcFormat.isSocketWrite($method))
-#set ($busName = $SystemcFormat.getBusName($method))
+#set ($busName = $SystemcFormat.getBusNameSocketWrite($method))
 {
 	sc_time delay = sc_time(10, SC_NS);
 	tlm::tlm_generic_payload * payload = new tlm::tlm_generic_payload;
@@ -54,7 +51,7 @@ $SystemcFormat.format($stm)
 	return r;
 }
 #elseif ($SystemcFormat.isSocketWriteVoid($method))
-#set ($busName = $SystemcFormat.getBusName($method))
+#set ($busName = $SystemcFormat.getBusNameSocketWrite($method))
 {
 	write_${busName}<char, params>(destination, method, parameters);
 }
@@ -88,9 +85,3 @@ void $SystemcFormat.getName($node)::thread() {
     }
 }
 #end
-
-void $node.getName()::split_address(sc_dt::uint64 address, int & module, int & method)
-{
-    method = 0x00000000FFFFFFFF & address;
-    module = address >> 32;
-}

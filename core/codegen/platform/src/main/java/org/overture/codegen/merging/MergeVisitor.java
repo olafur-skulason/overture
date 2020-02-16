@@ -147,7 +147,7 @@ public class MergeVisitor extends QuestionAdaptor<StringWriter>
 
 			if (template == null)
 			{
-				unsupportedInTargLang.add(new IrNodeInfo(node, "Template could not be found."));
+				unsupportedInTargLang.add(new IrNodeInfo(node, "Template could not be found. Type: " + node.getClass().toString()));
 			}
 			try
 			{
